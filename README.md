@@ -202,3 +202,4 @@ The shop's financial records live only in this database. Set up a daily dump:
 pg_dump -h localhost -p 5432 -U postgres mobile_repair_shop \
   | gzip > backups/mobile_repair_shop_$(date +%F).sql.gz
 ```
+# mobile-repair-shop-frontend
