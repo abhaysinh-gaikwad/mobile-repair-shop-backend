@@ -1,4 +1,4 @@
-import { getWhatsAppWebStatus } from '@src/integrations/whatsapp/whatsappWebClient';
+import { getWhatsAppWebStatus, resetWhatsAppWeb } from '@src/integrations/whatsapp/whatsappWebClient';
 import { getSuccessResponse, sendResponse } from '@src/helpers/response.helpers';
 import GetWhatsAppNotificationsService from '@src/services/whatsapp/getNotifications.service';
 import SendReceiptNotificationService from '@src/services/whatsapp/sendReceiptNotification.service';
@@ -8,6 +8,19 @@ export default class WhatsAppController {
   static async getWebStatus(req, res, next) {
     try {
       sendResponse({ req, res, next }, { ...getSuccessResponse('ok'), ...getWhatsAppWebStatus() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /** Clears a stuck/never-scanned session and starts over with a fresh QR. */
+  static async resetWeb(req, res, next) {
+    try {
+      // Fire-and-forget: the browser relaunch takes a few seconds, and the
+      // Settings page is already polling status — no need to make this
+      // request wait for the new QR to actually appear.
+      resetWhatsAppWeb().catch(() => {});
+      sendResponse({ req, res, next }, getSuccessResponse('Resetting — a new QR code will appear shortly.'));
     } catch (error) {
       next(error);
     }

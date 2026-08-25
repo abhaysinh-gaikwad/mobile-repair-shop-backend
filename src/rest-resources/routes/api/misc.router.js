@@ -131,3 +131,4 @@ settingRouter.put('/', ...write(updateSettingsSchema, SettingController.updateSe
 // /repairs/:id/whatsapp/* which is about sending a specific receipt.
 export const whatsappWebRouter = express.Router({ mergeParams: true });
 whatsappWebRouter.get('/status', ...read(null, WhatsAppController.getWebStatus));
+whatsappWebRouter.post('/reset', ...write(null, WhatsAppController.resetWeb));

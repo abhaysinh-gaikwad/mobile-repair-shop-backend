@@ -96,6 +96,25 @@ export function initWhatsAppWeb() {
   return initPromise;
 }
 
+/**
+ * Manual "clear and reconnect" — for when the session is stuck (never
+ * scanned, or Puppeteer failed to launch and gave up) rather than actually
+ * logged out. Destroys the current client, wipes the saved session on disk,
+ * and starts fresh: the next status check gets a brand new QR to scan.
+ */
+export async function resetWhatsAppWeb() {
+  const deadClient = client;
+  client = null;
+  readyState = false;
+  lastQrDataUrl = null;
+  initPromise = null;
+
+  if (deadClient) await deadClient.destroy().catch(() => {});
+  await fs.rm('.wwebjs_auth', { recursive: true, force: true }).catch(() => {});
+
+  return initWhatsAppWeb();
+}
+
 /** Status for the admin-facing "scan to connect" screen. */
 export function getWhatsAppWebStatus() {
   return {
