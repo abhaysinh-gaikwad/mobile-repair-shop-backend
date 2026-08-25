@@ -33,7 +33,13 @@ function buildClient() {
   return new Client({
     authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
     puppeteer: {
-      executablePath: process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+      // CHROME_EXECUTABLE_PATH is an opt-in for local dev (point at an
+      // already-installed system Chrome, skipping Puppeteer's own ~200MB
+      // Chromium download). Leave it UNSET everywhere else — Puppeteer then
+      // uses its own bundled Chromium, downloaded automatically at `npm
+      // install` time, which is what makes this work on a host like Render
+      // where no system Chrome exists at all.
+      ...(process.env.CHROME_EXECUTABLE_PATH ? { executablePath: process.env.CHROME_EXECUTABLE_PATH } : {}),
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage'],
     },

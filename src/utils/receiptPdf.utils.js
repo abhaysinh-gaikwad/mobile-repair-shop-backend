@@ -1,4 +1,8 @@
-import puppeteer from 'puppeteer-core';
+// The full 'puppeteer' package (not 'puppeteer-core'): it bundles its own
+// Chromium, downloaded automatically at `npm install` time, so this works
+// unchanged on a host with no system Chrome (e.g. Render) — see the
+// executablePath comment below.
+import puppeteer from 'puppeteer';
 
 import config from '@src/configs/app.config';
 import db from '@src/db/models';
@@ -27,7 +31,10 @@ export async function generateReceiptPdf({ repairJobId, adminId }) {
   const printUrl = `${baseUrl}/repairs/${repairJobId}/print`;
 
   const browser = await puppeteer.launch({
-    executablePath: process.env.CHROME_EXECUTABLE_PATH || '/usr/bin/google-chrome-stable',
+    // CHROME_EXECUTABLE_PATH is an opt-in for local dev only — see the same
+    // comment in whatsappWebClient.js. Leave unset to use Puppeteer's own
+    // bundled Chromium (required for this to work on Render).
+    ...(process.env.CHROME_EXECUTABLE_PATH ? { executablePath: process.env.CHROME_EXECUTABLE_PATH } : {}),
     headless: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
   });
