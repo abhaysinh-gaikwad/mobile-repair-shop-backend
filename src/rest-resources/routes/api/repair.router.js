@@ -12,6 +12,7 @@ import {
 } from '@src/json-schemas/repairs/updateRepair.schema';
 import {
   addCallLogSchema,
+  addEstimateSchema,
   addPartSchema,
   addPaymentSchema,
   jobIdParamsSchema,
@@ -200,6 +201,25 @@ repairRouter.get(
   isAuthenticated(),
   requestValidationMiddleware(jobIdParamsSchema),
   RepairSubResourceController.getCallLogs,
+);
+
+// --------------------------------------------------------------- estimates
+// Append-only, same reasoning as call logs: a revised quote is a new row,
+// never an edit — "what did we actually tell the customer" must stay reliable.
+repairRouter.post(
+  '/:id/estimates',
+  contextMiddleware(true),
+  isAuthenticated(),
+  requestValidationMiddleware(addEstimateSchema),
+  RepairSubResourceController.addEstimate,
+);
+
+repairRouter.get(
+  '/:id/estimates',
+  contextMiddleware(false),
+  isAuthenticated(),
+  requestValidationMiddleware(jobIdParamsSchema),
+  RepairSubResourceController.getEstimates,
 );
 
 // --------------------------------------------------------------- whatsapp

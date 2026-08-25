@@ -40,6 +40,7 @@ import LeadController from '@src/rest-resources/controllers/lead.controller';
 import ReportController from '@src/rest-resources/controllers/report.controller';
 import SettingController from '@src/rest-resources/controllers/setting.controller';
 import SupplierController from '@src/rest-resources/controllers/supplier.controller';
+import WhatsAppController from '@src/rest-resources/controllers/whatsapp.controller';
 import contextMiddleware from '@src/rest-resources/middlewares/context.middleware';
 import { isAuthenticated } from '@src/rest-resources/middlewares/isAuthenticated';
 import { requestValidationMiddleware } from '@src/rest-resources/middlewares/requestValidation.middleware';
@@ -124,3 +125,9 @@ dashboardRouter.get('/summary', ...read(null, ReportController.dashboard));
 export const settingRouter = express.Router({ mergeParams: true });
 settingRouter.get('/', ...read(null, SettingController.getSettings));
 settingRouter.put('/', ...write(updateSettingsSchema, SettingController.updateSettings));
+
+// ------------------------------------------------------- whatsapp (web QR)
+// Connection status for the WhatsApp Web provider — separate from
+// /repairs/:id/whatsapp/* which is about sending a specific receipt.
+export const whatsappWebRouter = express.Router({ mergeParams: true });
+whatsappWebRouter.get('/status', ...read(null, WhatsAppController.getWebStatus));

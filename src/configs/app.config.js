@@ -98,6 +98,12 @@ const config = convict({
     },
   },
   whatsapp: {
+    provider: {
+      doc: "Which transport sends WhatsApp messages. 'web' drives a logged-in WhatsApp Web session (no Meta app/business number needed, works from day one). 'cloud_api' uses Meta's official Cloud API (requires WHATSAPP_ACCESS_TOKEN etc, and an approved template). Switch to 'cloud_api' once that is set up — nothing else in the codebase needs to change.",
+      format: ['web', 'cloud_api'],
+      default: 'web',
+      env: 'WHATSAPP_PROVIDER',
+    },
     accessToken: {
       doc: 'Meta WhatsApp Cloud API permanent/system-user access token.',
       format: String,
@@ -140,6 +146,14 @@ const config = convict({
       format: String,
       default: '91',
       env: 'WHATSAPP_DEFAULT_COUNTRY_CODE',
+    },
+  },
+  frontend: {
+    baseUrl: {
+      doc: 'Where the Next.js app is reachable from THIS server. Used to render the receipt PDF (headless browser navigates to /repairs/:id/print) — never sent to a client.',
+      format: String,
+      default: 'http://localhost:5055',
+      env: 'FRONTEND_URL',
     },
   },
   security: {

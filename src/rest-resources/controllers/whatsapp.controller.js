@@ -1,8 +1,18 @@
-import { sendResponse } from '@src/helpers/response.helpers';
+import { getWhatsAppWebStatus } from '@src/integrations/whatsapp/whatsappWebClient';
+import { getSuccessResponse, sendResponse } from '@src/helpers/response.helpers';
 import GetWhatsAppNotificationsService from '@src/services/whatsapp/getNotifications.service';
 import SendReceiptNotificationService from '@src/services/whatsapp/sendReceiptNotification.service';
 
 export default class WhatsAppController {
+  /** Connection status for the "scan to connect" screen — no service/DB involved, it's live in-memory state. */
+  static async getWebStatus(req, res, next) {
+    try {
+      sendResponse({ req, res, next }, { ...getSuccessResponse('ok'), ...getWhatsAppWebStatus() });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async sendReceipt(req, res, next) {
     try {
       const data = await SendReceiptNotificationService.execute(

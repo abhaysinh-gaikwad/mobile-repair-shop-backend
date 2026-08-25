@@ -1,5 +1,6 @@
 import { sendResponse } from '@src/helpers/response.helpers';
 import { AddCallLogService, GetCallLogsService } from '@src/services/callLogs/manageCallLogs.service';
+import { AddEstimateService, GetEstimatesService } from '@src/services/estimates/manageEstimates.service';
 import { AddPartService, DeletePartService, UpdatePartService } from '@src/services/parts/manageParts.service';
 import AddPaymentService from '@src/services/payments/addPayment.service';
 import GetPaymentsService from '@src/services/payments/getPayments.service';
@@ -104,6 +105,28 @@ export default class RepairSubResourceController {
   static async getCallLogs(req, res, next) {
     try {
       const data = await GetCallLogsService.execute({ repairJobId: Number(req.params.id) }, req.context);
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ------------------------------------------------------------ estimates
+  static async addEstimate(req, res, next) {
+    try {
+      const data = await AddEstimateService.execute(
+        { repairJobId: Number(req.params.id), ...req.body, adminId: req.user.id },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async getEstimates(req, res, next) {
+    try {
+      const data = await GetEstimatesService.execute({ repairJobId: Number(req.params.id) }, req.context);
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

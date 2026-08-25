@@ -2,11 +2,25 @@ import http from 'http';
 
 import config from '@src/configs/app.config';
 import db from '@src/db/models';
+import { initWhatsAppWeb } from '@src/integrations/whatsapp/whatsappWebClient';
 import { Logger } from '@src/libs/logger';
 import app from '@src/rest-resources';
 
 const port = config.get('port');
 const server = http.createServer(app);
+
+// WhatsApp Web (whatsapp-web.js) drives its own headless browser and
+// reconnect logic internally; an error from THAT internal machinery (e.g. a
+// reconnect attempt racing a navigation right after the session disconnects)
+// is an unhandled rejection at the process level and would otherwise crash
+// the entire API — taking down repairs, billing, everything — over what is
+// a best-effort side feature. Log it and keep the server running.
+process.on('unhandledRejection', (reason) => {
+  Logger.error({ err: reason }, 'Unhandled promise rejection (server kept running)');
+});
+process.on('uncaughtException', (error) => {
+  Logger.error({ err: error }, 'Uncaught exception (server kept running)');
+});
 
 async function start() {
   try {
@@ -16,6 +30,13 @@ async function start() {
     server.listen(port, () => {
       Logger.info(`${config.get('app.name')} listening on port ${port}`);
     });
+
+    // Fire-and-forget: launching the WhatsApp Web browser session must never
+    // block or crash the HTTP server coming up. Failures are logged inside
+    // whatsappWebClient itself.
+    if (config.get('whatsapp.provider') === 'web') {
+      initWhatsAppWeb();
+    }
   } catch (error) {
     Logger.error({ err: error }, 'failed to start server');
     process.exit(1);

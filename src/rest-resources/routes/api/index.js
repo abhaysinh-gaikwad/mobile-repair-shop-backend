@@ -11,6 +11,7 @@ import {
   reportRouter,
   settingRouter,
   supplierRouter,
+  whatsappWebRouter,
 } from './misc.router';
 import repairRouter from './repair.router';
 
@@ -27,5 +28,6 @@ apiRouter.use('/billing', billingRouter);
 apiRouter.use('/reports', reportRouter);
 apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/settings', settingRouter);
+apiRouter.use('/whatsapp/web', whatsappWebRouter);
 
 export default apiRouter;

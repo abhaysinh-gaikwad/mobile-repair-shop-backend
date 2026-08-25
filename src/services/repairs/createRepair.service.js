@@ -37,6 +37,7 @@ export default class CreateRepairService extends BaseHandler {
       customerComplaint,
       engineerId,
       estimatedCost,
+      estimateNote,
       labourCharge,
       notes,
       deviceUnlockType,
@@ -148,6 +149,20 @@ export default class CreateRepairService extends BaseHandler {
       },
       transaction,
     );
+
+    // Seed the estimate history with the intake quote, so it appears
+    // alongside any later revisions instead of being a number with no record.
+    if (estimatedCost !== null && estimatedCost !== undefined) {
+      await db.RepairEstimate.create(
+        {
+          repairJobId: repairJob.id,
+          amount: round2(estimatedCost),
+          note: estimateNote?.trim() || 'Initial quote at intake',
+          createdBy: adminId ?? null,
+        },
+        { transaction },
+      );
+    }
 
     return {
       ...getSuccessResponse(`Repair job ${receiptNumber} created successfully.`),

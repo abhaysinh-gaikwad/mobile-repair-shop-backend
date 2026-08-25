@@ -10,9 +10,12 @@ const createRepairSchema = {
       alternateMobile: { type: 'string', maxLength: 20, nullable: true },
       address: { type: 'string', maxLength: 500, nullable: true },
 
-      // Lead attribution
-      leadSource: { type: 'string', maxLength: 60, nullable: true },
-      leadHandlerId: { type: 'integer', minimum: 1, nullable: true },
+      // Lead attribution — leadSource and leadHandlerId are both mandatory
+      // (see `required` below): the shop needs every repair attributed to a
+      // marketing source AND a sales/lead person, not just the ones staff
+      // remembered to fill in.
+      leadSource: { type: 'string', minLength: 1, maxLength: 60 },
+      leadHandlerId: { type: 'integer', minimum: 1 },
       leadAt: { type: 'string', format: 'date-time', nullable: true },
 
       // Device
@@ -40,10 +43,13 @@ const createRepairSchema = {
 
       engineerId: { type: 'integer', minimum: 1, nullable: true },
       estimatedCost: { type: 'number', minimum: 0, nullable: true },
+      // What the quote is for, e.g. "Screen replacement" — recorded on the
+      // first entry of the estimate history alongside estimatedCost.
+      estimateNote: { type: 'string', maxLength: 500, nullable: true },
       labourCharge: { type: 'number', minimum: 0 },
       notes: { type: 'string', maxLength: 2000, nullable: true },
     },
-    required: ['customerName', 'customerMobile', 'brand', 'modelNumber', 'customerComplaint'],
+    required: ['customerName', 'customerMobile', 'brand', 'modelNumber', 'customerComplaint', 'leadSource', 'leadHandlerId'],
     additionalProperties: false,
   },
 };

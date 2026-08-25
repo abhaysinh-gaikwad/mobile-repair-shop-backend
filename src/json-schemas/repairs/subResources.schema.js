@@ -109,4 +109,18 @@ export const addCallLogSchema = {
   },
 };
 
+// ------------------------------------------------------------- estimates
+export const addEstimateSchema = {
+  params: jobIdParams,
+  body: {
+    type: 'object',
+    properties: {
+      amount: { type: 'number', exclusiveMinimum: 0 },
+      note: { type: 'string', maxLength: 500, nullable: true },
+    },
+    required: ['amount'],
+    additionalProperties: false,
+  },
+};
+
 export const jobIdParamsSchema = { params: jobIdParams };

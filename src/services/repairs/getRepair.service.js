@@ -29,6 +29,7 @@ export default class GetRepairService extends BaseHandler {
           include: [{ model: db.AdminUser, as: 'receiver', attributes: ['id', 'name'] }],
         },
         { model: db.RepairCallLog, as: 'callLogs' },
+        { model: db.RepairEstimate, as: 'estimates' },
         { model: db.RepairStatusHistory, as: 'statusHistory' },
         // Repeat-repair lineage, shown as a link back to the earlier job.
         {
@@ -41,6 +42,7 @@ export default class GetRepairService extends BaseHandler {
         [{ model: db.RepairPart, as: 'parts' }, 'id', 'ASC'],
         [{ model: db.RepairLedger, as: 'ledgerEntries' }, 'paidAt', 'ASC'],
         [{ model: db.RepairCallLog, as: 'callLogs' }, 'calledAt', 'DESC'],
+        [{ model: db.RepairEstimate, as: 'estimates' }, 'createdAt', 'DESC'],
         [{ model: db.RepairStatusHistory, as: 'statusHistory' }, 'createdAt', 'ASC'],
       ],
     });
@@ -87,6 +89,7 @@ export default class GetRepairService extends BaseHandler {
           unitPrice: round2(part.unitPrice),
           totalPrice: round2(part.totalPrice),
         })),
+        estimates: plain.estimates.map((estimate) => ({ ...estimate, amount: round2(estimate.amount) })),
         ledgerEntries: plain.ledgerEntries.map((entry) => ({
           ...entry,
           amount: round2(entry.amount),
