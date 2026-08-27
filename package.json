@@ -46,7 +46,7 @@
     "pg-hstore": "^2.3.4",
     "pino": "^9.5.0",
     "pino-pretty": "^13.0.0",
-    "puppeteer": "^24.38.0",
+    "puppeteer": "24.38.0",
     "qrcode": "^1.5.4",
     "sequelize": "^6.37.5",
     "uuid": "^11.0.3",
