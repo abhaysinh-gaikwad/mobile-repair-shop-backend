@@ -55,6 +55,13 @@ module.exports = function (sequelize, DataTypes) {
       // afterwards — findings belong in `diagnosis`.
       customerComplaint: { type: DataTypes.TEXT, allowNull: false, field: 'customer_complaint' },
 
+      // What the CUSTOMER says about the phone's own history — e.g. "shown
+      // to 3 other shops, none were sure it could be fixed". Separate from
+      // customerComplaint (the technical problem) and from this shop's own
+      // repeat-visit records — this is the customer's account of what
+      // happened elsewhere, which the shop has no record of.
+      customerHistoryNote: { type: DataTypes.TEXT, allowNull: true, field: 'customer_history_note' },
+
       // ---- Device screen lock (sensitive) ----
       // Captured so the engineer can test the phone after repair. NEVER a
       // Google/Apple/email/banking password. The secret is stored encrypted

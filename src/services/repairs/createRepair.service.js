@@ -1,10 +1,16 @@
 import db from '@src/db/models';
 import { AppError } from '@src/errors/app.error';
 import { Errors } from '@src/errors/errorCodes';
-import { generateReceiptNumber, recordStatusChange } from '@src/helpers/repair.helpers';
+import { generateLedgerEntryNo, generateReceiptNumber, recordStatusChange } from '@src/helpers/repair.helpers';
 import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
-import { DEVICE_UNLOCK_TYPE, REPAIR_STATUS } from '@src/utils/constants/public.constants';
+import {
+  DEVICE_UNLOCK_TYPE,
+  LEDGER_ENTRY_TYPE,
+  PAYMENT_METHOD,
+  PAYMENT_TYPE,
+  REPAIR_STATUS,
+} from '@src/utils/constants/public.constants';
 import { encryptSecret } from '@src/utils/crypto.utils';
 import { round2 } from '@src/utils/money.utils';
 
@@ -35,9 +41,11 @@ export default class CreateRepairService extends BaseHandler {
       hasCharger,
       otherAccessories,
       customerComplaint,
+      customerHistoryNote,
       engineerId,
-      estimatedCost,
-      estimateNote,
+      estimates,
+      advancePayment,
+      advancePaymentMethod,
       labourCharge,
       notes,
       deviceUnlockType,
@@ -102,6 +110,13 @@ export default class CreateRepairService extends BaseHandler {
     const status = REPAIR_STATUS.PENDING;
     const labour = round2(labourCharge ?? 0);
 
+    // Multiple quote components entered together at intake (e.g. Screen ₹500,
+    // Battery ₹300) — the job's quoted total is their sum.
+    const estimateAmounts = (estimates ?? []).map((amount) => round2(amount)).filter((amount) => amount > 0);
+    const estimatedCost = estimateAmounts.length
+      ? round2(estimateAmounts.reduce((sum, amount) => sum + amount, 0))
+      : null;
+
     const repairJob = await db.RepairJob.create(
       {
         receiptNumber,
@@ -119,6 +134,7 @@ export default class CreateRepairService extends BaseHandler {
         hasCharger: Boolean(hasCharger),
         otherAccessories: otherAccessories ?? null,
         customerComplaint: String(customerComplaint).trim(),
+        customerHistoryNote: customerHistoryNote?.trim() || null,
 
         // Screen-lock credential only, encrypted before it ever reaches the DB.
         deviceUnlockType: deviceUnlockType && deviceUnlockType !== DEVICE_UNLOCK_TYPE.NONE ? deviceUnlockType : null,
@@ -150,15 +166,40 @@ export default class CreateRepairService extends BaseHandler {
       transaction,
     );
 
-    // Seed the estimate history with the intake quote, so it appears
-    // alongside any later revisions instead of being a number with no record.
-    if (estimatedCost !== null && estimatedCost !== undefined) {
+    // Seed the estimate history — one row per component entered at intake —
+    // so it appears alongside any later additions instead of being a number
+    // with no record behind it.
+    for (const amount of estimateAmounts) {
       await db.RepairEstimate.create(
+        { repairJobId: repairJob.id, amount, note: null, createdBy: adminId ?? null },
+        { transaction },
+      );
+    }
+
+    // Money taken at the counter right at intake — a real ledger payment,
+    // not just a number printed on paper, so it shows up correctly in Billing.
+    if (advancePayment && round2(advancePayment) > 0) {
+      const paymentAmount = round2(advancePayment);
+      const jobBalanceAfter = round2(labour - paymentAmount);
+
+      await db.RepairLedger.create(
         {
+          entryNo: await generateLedgerEntryNo(transaction),
           repairJobId: repairJob.id,
-          amount: round2(estimatedCost),
-          note: estimateNote?.trim() || 'Initial quote at intake',
-          createdBy: adminId ?? null,
+          receiptNumber,
+          customerId: customer.id,
+          customerName: customer.name,
+          customerMobile: customer.mobile,
+          entryType: LEDGER_ENTRY_TYPE.PAYMENT,
+          paymentType: PAYMENT_TYPE.ADVANCE,
+          paymentMethod: advancePaymentMethod || PAYMENT_METHOD.CASH,
+          amount: paymentAmount,
+          jobTotalAfter: labour,
+          jobPaidAfter: paymentAmount,
+          jobBalanceAfter,
+          note: 'Advance taken at intake',
+          paidAt: new Date(),
+          receivedBy: adminId ?? null,
         },
         { transaction },
       );

@@ -50,7 +50,10 @@ export default class RepairController {
 
   static async getReceipt(req, res, next) {
     try {
-      const data = await GetReceiptDataService.execute({ id: Number(req.params.id) }, req.context);
+      const data = await GetReceiptDataService.execute(
+        { id: Number(req.params.id), adminId: req.user.id },
+        req.context,
+      );
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

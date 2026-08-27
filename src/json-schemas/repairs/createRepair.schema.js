@@ -1,4 +1,4 @@
-import { DEVICE_UNLOCK_TYPE } from '@src/utils/constants/public.constants';
+import { ACTIVE_PAYMENT_METHODS, DEVICE_UNLOCK_TYPE } from '@src/utils/constants/public.constants';
 
 const createRepairSchema = {
   body: {
@@ -31,6 +31,9 @@ const createRepairSchema = {
       otherAccessories: { type: 'string', maxLength: 255, nullable: true },
 
       customerComplaint: { type: 'string', minLength: 1, maxLength: 2000 },
+      // What the customer SAYS about the phone's own history (e.g. tried at
+      // other shops already) — separate from customerComplaint.
+      customerHistoryNote: { type: 'string', maxLength: 2000, nullable: true },
 
       // Screen-lock credential ONLY — never a Google/Apple/email/banking
       // password. Optional; stored encrypted and never returned in lists.
@@ -42,10 +45,15 @@ const createRepairSchema = {
       previousRepairJobId: { type: 'integer', minimum: 1, nullable: true },
 
       engineerId: { type: 'integer', minimum: 1, nullable: true },
-      estimatedCost: { type: 'number', minimum: 0, nullable: true },
-      // What the quote is for, e.g. "Screen replacement" — recorded on the
-      // first entry of the estimate history alongside estimatedCost.
-      estimateNote: { type: 'string', maxLength: 500, nullable: true },
+      // Multiple quote components entered together at intake (e.g. Screen
+      // ₹500, Battery ₹300) — each becomes its own append-only estimate row;
+      // the job's quoted total is their sum.
+      estimates: { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, maxItems: 20, nullable: true },
+      // Cash taken at the counter right at intake, before the phone even
+      // leaves the customer's hand — becomes a real ledger payment, not just
+      // a number printed on paper.
+      advancePayment: { type: 'number', exclusiveMinimum: 0, nullable: true },
+      advancePaymentMethod: { type: 'string', enum: ACTIVE_PAYMENT_METHODS, nullable: true },
       labourCharge: { type: 'number', minimum: 0 },
       notes: { type: 'string', maxLength: 2000, nullable: true },
     },

@@ -51,9 +51,24 @@ export async function generateReceiptPdf({ repairJobId, adminId }) {
 
     await page.goto(printUrl, { waitUntil: 'networkidle0', timeout: 30000 });
 
-    // Wait for the actual slip (not the loading/error state) and for the
+    // Wait for the actual slip (not the loading/error state), for the
+    // background template image to actually finish decoding, and for the
     // Devanagari font to finish loading — otherwise conjuncts render broken.
-    await page.waitForSelector('.print-border', { timeout: 15000 });
+    await page.waitForSelector('[data-testid="receipt-slip"]', { timeout: 15000 });
+    await page.waitForFunction(
+      () => {
+        // eslint-disable-next-line no-undef -- runs in the browser page context, not Node
+        const el = document.querySelector('[data-testid="receipt-slip"]');
+        // eslint-disable-next-line no-undef -- runs in the browser page context, not Node
+        const url = el && getComputedStyle(el).backgroundImage.slice(5, -2);
+        if (!url) return false;
+        // eslint-disable-next-line no-undef -- runs in the browser page context, not Node
+        const img = new Image();
+        img.src = url;
+        return img.complete;
+      },
+      { timeout: 15000 },
+    );
     // eslint-disable-next-line no-undef -- runs in the browser page context, not Node
     await page.evaluate(() => document.fonts?.ready);
 

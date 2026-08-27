@@ -4,6 +4,7 @@ import { Errors } from '@src/errors/errorCodes';
 import { getRepairMoneySummary } from '@src/helpers/repair.helpers';
 import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
+import { decryptSecret } from '@src/utils/crypto.utils';
 import { round2 } from '@src/utils/money.utils';
 
 /**
@@ -16,19 +17,44 @@ import { round2 } from '@src/utils/money.utils';
  */
 export default class GetReceiptDataService extends BaseHandler {
   async run() {
-    const { id } = this.args;
+    const { id, adminId } = this.args;
+    const transaction = this.dbTransaction;
 
-    const repairJob = await db.RepairJob.findByPk(id, {
+    // `unscoped`: the default scope hides deviceUnlockSecret. The receipt
+    // template has a "मोबाईल लॉक" box printed specifically for the shop to
+    // write the unlock down by hand — this replaces that with the actual
+    // saved one (pattern drawn as dots, PIN/password printed as text). Same
+    // as the on-screen reveal, every read is logged below.
+    const repairJob = await db.RepairJob.unscoped().findByPk(id, {
       include: [
         { model: db.Customer, as: 'customer' },
         { model: db.Engineer, as: 'engineer', attributes: ['id', 'name'] },
         { model: db.RepairPart, as: 'parts' },
         { model: db.RepairCallLog, as: 'callLogs' },
+        { model: db.RepairEstimate, as: 'estimates' },
       ],
-      order: [[{ model: db.RepairCallLog, as: 'callLogs' }, 'calledAt', 'ASC']],
+      order: [
+        [{ model: db.RepairCallLog, as: 'callLogs' }, 'calledAt', 'ASC'],
+        [{ model: db.RepairEstimate, as: 'estimates' }, 'id', 'ASC'],
+      ],
     });
 
     if (!repairJob) throw new AppError(Errors.REPAIR_NOT_FOUND);
+
+    let unlockPattern = null;
+    let unlockCode = null;
+    if (repairJob.deviceUnlockType && repairJob.deviceUnlockSecret) {
+      const decrypted = decryptSecret(repairJob.deviceUnlockSecret);
+      if (decrypted) {
+        if (repairJob.deviceUnlockType === 'PATTERN') unlockPattern = decrypted;
+        else unlockCode = decrypted;
+
+        await db.DeviceUnlockAccessLog.create(
+          { repairJobId: repairJob.id, adminUserId: adminId ?? null },
+          { transaction },
+        );
+      }
+    }
 
     const settingRows = await db.ShopSetting.findAll();
     const settings = settingRows.reduce((acc, setting) => {
@@ -66,6 +92,11 @@ export default class GetReceiptDataService extends BaseHandler {
           modelNumber: plain.modelNumber,
           imei: plain.imei ?? '',
         },
+        deviceUnlockType: plain.deviceUnlockType ?? null,
+        // Dot-index string ("1-2-5-8-9"), PATTERN locks only — see the note above.
+        unlockPattern,
+        // Plain PIN/password text — PIN and PASSWORD locks only.
+        unlockCode,
         itemsReceived: {
           simCard: plain.hasSimCard,
           memoryCard: plain.hasMemoryCard,
@@ -74,6 +105,11 @@ export default class GetReceiptDataService extends BaseHandler {
           other: plain.otherAccessories ?? '',
         },
         customerComplaint: plain.customerComplaint,
+        // What the CUSTOMER says about the phone's own history (e.g. tried
+        // elsewhere already) — printed in the "Mobile Repair History &
+        // Details" box, since that's a much more useful thing to put there
+        // than this shop's own internal visit records.
+        customerHistoryNote: plain.customerHistoryNote ?? '',
         diagnosis: plain.diagnosis ?? '',
         repairDetails: plain.repairDetails ?? '',
         status: plain.status,
@@ -86,6 +122,9 @@ export default class GetReceiptDataService extends BaseHandler {
         labourCharge: round2(plain.labourCharge),
         // The quotation given at intake, shown when no final amount is set yet.
         estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),
+        // The quote components themselves — printed comma-separated in the
+        // Expense Details box, since parts are usually added later, not at intake.
+        estimates: plain.estimates.map((estimate) => round2(estimate.amount)),
         callLogs: plain.callLogs.map((log) => ({
           calledAt: log.calledAt,
           calledBy: log.calledBy,

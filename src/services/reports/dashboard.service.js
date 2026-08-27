@@ -87,6 +87,11 @@ export default class GetDashboardSummaryService extends BaseHandler {
         inRepair: inRepairCount,
         jobDone: countFor(REPAIR_STATUS.JOB_DONE),
         delivered: countFor(REPAIR_STATUS.DELIVERED),
+        // Sent out to another shop/technician, and how many of those have
+        // come back — tracked separately since "in repair" alone hides
+        // whether a phone is actually on-site or not.
+        outdoorOut: countFor(REPAIR_STATUS.OUTDOOR_OUT),
+        outdoorIn: countFor(REPAIR_STATUS.OUTDOOR_IN),
         todayCollection: round2(todayCollection || 0),
         pendingPayments: pendingAmount,
       },

@@ -6,35 +6,31 @@ import { BaseHandler } from '@src/libs/logicBase';
 import { round2 } from '@src/utils/money.utils';
 
 /**
- * The history of quotes given to a customer for a repair.
+ * The quote components for a repair — e.g. Screen ₹500, Battery ₹300.
  *
  * APPEND-ONLY: there is deliberately no update and no delete service here,
- * and no route exposes one — a revised quote is a NEW row, never an edit to
- * the old one, so "what did we actually tell the customer" stays reliable.
+ * and no route exposes one — a correction is a NEW row, never an edit to the
+ * old one, so "what did we actually tell the customer" stays reliable.
  *
- * `repair_jobs.estimated_cost` is kept in sync with the latest entry so every
- * existing reader (receipt, WhatsApp message, list views) keeps working
- * unchanged; this table is the full record behind that single number.
+ * `repair_jobs.estimated_cost` is kept as the SUM of every component, so
+ * every existing reader (receipt, WhatsApp message, list views) keeps
+ * working unchanged; this table is the itemized record behind that number.
  */
 export class AddEstimateService extends BaseHandler {
   async run() {
-    const { repairJobId, amount, note, adminId } = this.args;
+    const { repairJobId, amount, adminId } = this.args;
     const transaction = this.dbTransaction;
 
     const repairJob = await db.RepairJob.findByPk(repairJobId, { transaction });
     if (!repairJob) throw new AppError(Errors.REPAIR_NOT_FOUND);
 
     const estimate = await db.RepairEstimate.create(
-      {
-        repairJobId,
-        amount: round2(amount),
-        note: note ?? null,
-        createdBy: adminId ?? null,
-      },
+      { repairJobId, amount: round2(amount), note: null, createdBy: adminId ?? null },
       { transaction },
     );
 
-    await repairJob.update({ estimatedCost: estimate.amount }, { transaction });
+    const total = await db.RepairEstimate.sum('amount', { where: { repairJobId }, transaction });
+    await repairJob.update({ estimatedCost: round2(total) }, { transaction });
 
     return { ...getSuccessResponse('Estimate added successfully.'), estimate };
   }
