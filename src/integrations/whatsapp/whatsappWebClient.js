@@ -1,11 +1,15 @@
+import { execFile } from 'child_process';
 import fs from 'fs/promises';
 import os from 'os';
 import path from 'path';
+import { promisify } from 'util';
 
 import { Client, LocalAuth, MessageMedia } from 'whatsapp-web.js';
 import QRCode from 'qrcode';
 
 import { Logger } from '@src/libs/logger';
+
+const execFileAsync = promisify(execFile);
 
 /**
  * Alternate WhatsApp transport: drives a real, logged-in WhatsApp Web session
@@ -28,6 +32,47 @@ let client = null;
 let readyState = false;
 let lastQrDataUrl = null;
 let initPromise = null;
+
+/**
+ * Render's build and running-app filesystems are different layers — a
+ * Chrome binary downloaded during `npm install`'s postinstall step (build
+ * time) does NOT reliably survive into the running deploy (runtime), no
+ * matter which cache directory it's pointed at. `whatsapp-web.js`/Puppeteer
+ * then fail with "Could not find Chrome" even though the build logs showed
+ * a successful install minutes earlier.
+ *
+ * Fix: check for Chrome once at actual process startup (runtime, not build
+ * time) and, if missing, download it right there — using the same `puppeteer
+ * browsers install chrome` CLI Puppeteer ships, so it resolves the exact
+ * build id THIS installed Puppeteer version expects rather than guessing one.
+ */
+let ensureChromePromise = null;
+async function ensureChromeInstalled() {
+  if (ensureChromePromise) return ensureChromePromise;
+
+  ensureChromePromise = (async () => {
+    try {
+      const puppeteer = await import('puppeteer');
+      const executablePath = puppeteer.default.executablePath();
+      await fs.access(executablePath);
+      Logger.info({ executablePath }, 'WhatsApp Web: Chrome already installed');
+    } catch {
+      Logger.warn('WhatsApp Web: Chrome not found at runtime — installing now (one-time, ~1 min)');
+      try {
+        const cliPath = require.resolve('puppeteer/lib/cjs/puppeteer/node/cli.js');
+        await execFileAsync(process.execPath, [cliPath, 'browsers', 'install', 'chrome'], {
+          timeout: 180000,
+        });
+        Logger.info('WhatsApp Web: Chrome installed successfully');
+      } catch (installError) {
+        Logger.error({ err: installError }, 'WhatsApp Web: runtime Chrome install failed');
+        throw installError;
+      }
+    }
+  })();
+
+  return ensureChromePromise;
+}
 
 function buildClient() {
   return new Client({
@@ -53,6 +98,19 @@ function buildClient() {
 export function initWhatsAppWeb() {
   if (initPromise) return initPromise;
 
+  initPromise = (async () => {
+    await ensureChromeInstalled();
+    return launchClient();
+  })().catch((error) => {
+    Logger.error({ err: error }, 'WhatsApp Web: failed to initialize');
+    // Allow a later retry rather than staying permanently stuck.
+    initPromise = null;
+  });
+
+  return initPromise;
+}
+
+function launchClient() {
   client = buildClient();
 
   client.on('qr', async (qr) => {
@@ -87,13 +145,7 @@ export function initWhatsAppWeb() {
     Logger.error({ message }, 'WhatsApp Web: authentication failed');
   });
 
-  initPromise = client.initialize().catch((error) => {
-    Logger.error({ err: error }, 'WhatsApp Web: failed to initialize');
-    // Allow a later retry rather than staying permanently stuck.
-    initPromise = null;
-  });
-
-  return initPromise;
+  return client.initialize();
 }
 
 /**
