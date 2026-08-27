@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "postinstall": "puppeteer browsers install chrome",
+    "postinstall": "rimraf \"$(node -e \"console.log(process.env.PUPPETEER_CACHE_DIR || require('os').homedir()+'/.cache/puppeteer')\")/chrome\" && puppeteer browsers install chrome",
     "prebuild": "rimraf dist",
     "build": "babel . -d dist --ignore \"node_modules/**\",\"dist/**\"",
     "dev": "nodemon --exec babel-node ./index.js",
