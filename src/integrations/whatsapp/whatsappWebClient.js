@@ -110,7 +110,24 @@ export async function resetWhatsAppWeb() {
   initPromise = null;
 
   if (deadClient) await deadClient.destroy().catch(() => {});
-  await fs.rm('.wwebjs_auth', { recursive: true, force: true }).catch(() => {});
+
+  // client.destroy() resolves once Puppeteer's browser.close() call returns,
+  // but the underlying Chrome OS process can take a moment longer to
+  // actually release its lock/file handles on .wwebjs_auth — an rm right
+  // after destroy() can silently no-op (EBUSY, swallowed by force:true),
+  // leaving the OLD authenticated session in place. The next init then just
+  // reconnects to the same account instead of ever showing a fresh QR. Retry
+  // the delete for a few seconds instead of trying exactly once.
+  const deadline = Date.now() + 5000;
+  for (;;) {
+    await fs.rm('.wwebjs_auth', { recursive: true, force: true }).catch(() => {});
+    const stillThere = await fs
+      .access('.wwebjs_auth')
+      .then(() => true)
+      .catch(() => false);
+    if (!stillThere || Date.now() > deadline) break;
+    await new Promise((resolve) => setTimeout(resolve, 300));
+  }
 
   return initWhatsAppWeb();
 }
