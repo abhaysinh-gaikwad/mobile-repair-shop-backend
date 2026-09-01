@@ -28,7 +28,9 @@ export async function generateReceiptPdf({ repairJobId, adminId }) {
   const token = generateLoginToken(admin ?? { id: adminId, email: '', name: 'Shop Owner' });
 
   const baseUrl = config.get('frontend.baseUrl');
-  const printUrl = `${baseUrl}/repairs/${repairJobId}/print`;
+  // copies=1 — the customer gets ONE copy of their own receipt on WhatsApp,
+  // never the shop's second (internal) copy that a physical print includes.
+  const printUrl = `${baseUrl}/repairs/${repairJobId}/print?copies=1`;
 
   const browser = await puppeteer.launch({
     // CHROME_EXECUTABLE_PATH is an opt-in for local dev only — see the same
