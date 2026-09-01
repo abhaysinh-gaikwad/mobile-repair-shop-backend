@@ -1,4 +1,5 @@
 import { sendResponse } from '@src/helpers/response.helpers';
+import { Logger } from '@src/libs/logger';
 import AssignEngineerService from '@src/services/repairs/assignEngineer.service';
 import CreateRepairService from '@src/services/repairs/createRepair.service';
 import GetRepairService from '@src/services/repairs/getRepair.service';
@@ -10,6 +11,8 @@ import UpdateDeviceUnlockService from '@src/services/repairs/updateDeviceUnlock.
 import UpdateDiagnosisService from '@src/services/repairs/updateDiagnosis.service';
 import UpdateRepairService from '@src/services/repairs/updateRepair.service';
 import UpdateRepairStatusService from '@src/services/repairs/updateRepairStatus.service';
+import SendJobDoneNotificationService from '@src/services/whatsapp/sendJobDoneNotification.service';
+import { REPAIR_STATUS } from '@src/utils/constants/public.constants';
 
 export default class RepairController {
   static async createRepair(req, res, next) {
@@ -114,6 +117,17 @@ export default class RepairController {
         req.context,
       );
       sendResponse({ req, res, next }, data);
+
+      // Fire-and-forget, AFTER the response is sent: the status change has
+      // already committed by this point, and a slow/failed WhatsApp send
+      // must never delay or fail the status update itself — the phone IS
+      // done regardless of whether the message goes through. Only on the
+      // actual transition INTO JOB_DONE, not every edit while already there.
+      if (data.repairJob.status === REPAIR_STATUS.JOB_DONE && data.fromStatus !== REPAIR_STATUS.JOB_DONE) {
+        SendJobDoneNotificationService.execute({ repairJobId: data.repairJob.id, adminId: req.user.id }, {}).catch(
+          (error) => Logger.warn({ err: error, repairJobId: data.repairJob.id }, 'Job-done WhatsApp notification failed'),
+        );
+      }
     } catch (error) {
       next(error);
     }

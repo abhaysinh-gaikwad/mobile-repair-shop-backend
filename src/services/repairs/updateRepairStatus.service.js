@@ -52,6 +52,10 @@ export default class UpdateRepairStatusService extends BaseHandler {
       repairJob: { id: repairJob.id, receiptNumber: repairJob.receiptNumber, status, ...money },
       // Surfaced so the UI can show "balance still outstanding" on delivery.
       hasOutstandingBalance: money.balance > 0,
+      // So the controller can fire a "job's ready" WhatsApp message only on
+      // the actual transition INTO JOB_DONE, not every edit while already
+      // in that status.
+      fromStatus,
     };
   }
 }

@@ -167,7 +167,8 @@ export const WHATSAPP_STATUS = Object.freeze({
   FAILED: 'FAILED',
 });
 
-/** What the message was about — currently only the receipt notification. */
+/** What the message was about. */
 export const WHATSAPP_MESSAGE_TYPE = Object.freeze({
   RECEIPT: 'RECEIPT',
+  JOB_DONE: 'JOB_DONE',
 });

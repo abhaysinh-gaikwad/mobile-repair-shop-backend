@@ -30,11 +30,22 @@ export async function nextSequenceValue(sequenceName, transaction) {
   return Number(rows[0].value);
 }
 
-/** Next receipt number, e.g. "R-00001". */
+/**
+ * Next receipt number, e.g. "R-00001" — or just "00001" if the shop has
+ * deliberately cleared `receipt_prefix` in Settings.
+ *
+ * Reads the setting row directly rather than through `getSetting()`: that
+ * helper treats an empty string as "unset" (falls back to the default) for
+ * every OTHER setting, which is the right guard everywhere else but wrong
+ * here — a shop clearing the prefix field is a deliberate choice to drop
+ * it, not an accident to protect against. Only a genuinely missing row
+ * (never configured at all) falls back to "R-".
+ */
 export async function generateReceiptNumber(transaction) {
+  const setting = await db.ShopSetting.findOne({ where: { key: SETTING_KEYS.RECEIPT_PREFIX }, transaction });
   // Trimmed: a stray space typed into the setting would otherwise be baked
   // into every receipt number and into the ledger snapshots that copy it.
-  const prefix = String(await getSetting(SETTING_KEYS.RECEIPT_PREFIX, 'R-', transaction)).trim();
+  const prefix = String(setting?.value ?? 'R-').trim();
   const value = await nextSequenceValue(SEQUENCES.RECEIPT_NUMBER, transaction);
   return `${prefix}${String(value).padStart(5, '0')}`;
 }
