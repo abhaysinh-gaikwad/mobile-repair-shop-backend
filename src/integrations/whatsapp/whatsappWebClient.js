@@ -74,6 +74,23 @@ async function ensureChromeInstalled() {
   return ensureChromePromise;
 }
 
+/**
+ * Chrome's own crash-recovery lock (`SingletonLock` etc., inside the
+ * persistent `.wwebjs_auth` volume) references the PID/hostname of whatever
+ * container process wrote it. Every redeploy is a brand-new container, so
+ * that old process can never still be running — the lock is unconditionally
+ * stale at startup, not something that needs checking, and left in place it
+ * makes Chrome refuse to launch at all ("profile appears to be in use by
+ * another process") until someone manually clears it over SSH.
+ */
+async function clearStaleSingletonLock() {
+  await Promise.all(
+    ['SingletonLock', 'SingletonSocket', 'SingletonCookie'].map((name) =>
+      fs.rm(`.wwebjs_auth/session/${name}`, { force: true }).catch(() => {}),
+    ),
+  );
+}
+
 function buildClient() {
   return new Client({
     authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
@@ -100,6 +117,7 @@ export function initWhatsAppWeb() {
 
   initPromise = (async () => {
     await ensureChromeInstalled();
+    await clearStaleSingletonLock();
     return launchClient();
   })().catch((error) => {
     Logger.error({ err: error }, 'WhatsApp Web: failed to initialize');
