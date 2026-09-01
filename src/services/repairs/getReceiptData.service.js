@@ -124,7 +124,10 @@ export default class GetReceiptDataService extends BaseHandler {
         estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),
         // The quote components themselves — printed comma-separated in the
         // Expense Details box, since parts are usually added later, not at intake.
-        estimates: plain.estimates.map((estimate) => round2(estimate.amount)),
+        estimates: plain.estimates.map((estimate) => ({
+          amount: round2(estimate.amount),
+          note: estimate.note,
+        })),
         callLogs: plain.callLogs.map((log) => ({
           calledAt: log.calledAt,
           calledBy: log.calledBy,

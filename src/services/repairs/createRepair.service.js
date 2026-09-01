@@ -110,11 +110,14 @@ export default class CreateRepairService extends BaseHandler {
     const status = REPAIR_STATUS.PENDING;
     const labour = round2(labourCharge ?? 0);
 
-    // Multiple quote components entered together at intake (e.g. Screen ₹500,
-    // Battery ₹300) — the job's quoted total is their sum.
-    const estimateAmounts = (estimates ?? []).map((amount) => round2(amount)).filter((amount) => amount > 0);
-    const estimatedCost = estimateAmounts.length
-      ? round2(estimateAmounts.reduce((sum, amount) => sum + amount, 0))
+    // Multiple quote components entered together at intake (e.g. "500
+    // original", "300 market") — the job's quoted total is the sum of every
+    // row's amount; each row's note (if any) is kept alongside it.
+    const estimateRows = (estimates ?? [])
+      .map((row) => ({ amount: round2(row.amount), note: row.note?.trim() || null }))
+      .filter((row) => row.amount > 0);
+    const estimatedCost = estimateRows.length
+      ? round2(estimateRows.reduce((sum, row) => sum + row.amount, 0))
       : null;
 
     const repairJob = await db.RepairJob.create(
@@ -169,9 +172,9 @@ export default class CreateRepairService extends BaseHandler {
     // Seed the estimate history — one row per component entered at intake —
     // so it appears alongside any later additions instead of being a number
     // with no record behind it.
-    for (const amount of estimateAmounts) {
+    for (const row of estimateRows) {
       await db.RepairEstimate.create(
-        { repairJobId: repairJob.id, amount, note: null, createdBy: adminId ?? null },
+        { repairJobId: repairJob.id, amount: row.amount, note: row.note, createdBy: adminId ?? null },
         { transaction },
       );
     }

@@ -116,6 +116,7 @@ export const addEstimateSchema = {
     type: 'object',
     properties: {
       amount: { type: 'number', exclusiveMinimum: 0 },
+      note: { type: 'string', maxLength: 255, nullable: true },
     },
     required: ['amount'],
     additionalProperties: false,

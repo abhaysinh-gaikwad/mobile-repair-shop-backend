@@ -45,10 +45,23 @@ const createRepairSchema = {
       previousRepairJobId: { type: 'integer', minimum: 1, nullable: true },
 
       engineerId: { type: 'integer', minimum: 1, nullable: true },
-      // Multiple quote components entered together at intake (e.g. Screen
-      // ₹500, Battery ₹300) — each becomes its own append-only estimate row;
-      // the job's quoted total is their sum.
-      estimates: { type: 'array', items: { type: 'number', exclusiveMinimum: 0 }, maxItems: 20, nullable: true },
+      // Multiple quote components entered together at intake (e.g. "500
+      // original", "300 market") — each becomes its own append-only estimate
+      // row; the job's quoted total is the sum of every row's amount.
+      estimates: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            amount: { type: 'number', exclusiveMinimum: 0 },
+            note: { type: 'string', maxLength: 255, nullable: true },
+          },
+          required: ['amount'],
+          additionalProperties: false,
+        },
+        maxItems: 20,
+        nullable: true,
+      },
       // Cash taken at the counter right at intake, before the phone even
       // leaves the customer's hand — becomes a real ledger payment, not just
       // a number printed on paper.

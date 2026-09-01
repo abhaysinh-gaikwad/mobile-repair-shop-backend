@@ -18,14 +18,14 @@ import { round2 } from '@src/utils/money.utils';
  */
 export class AddEstimateService extends BaseHandler {
   async run() {
-    const { repairJobId, amount, adminId } = this.args;
+    const { repairJobId, amount, note, adminId } = this.args;
     const transaction = this.dbTransaction;
 
     const repairJob = await db.RepairJob.findByPk(repairJobId, { transaction });
     if (!repairJob) throw new AppError(Errors.REPAIR_NOT_FOUND);
 
     const estimate = await db.RepairEstimate.create(
-      { repairJobId, amount: round2(amount), note: null, createdBy: adminId ?? null },
+      { repairJobId, amount: round2(amount), note: note?.trim() || null, createdBy: adminId ?? null },
       { transaction },
     );
 
