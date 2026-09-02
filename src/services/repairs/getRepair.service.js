@@ -80,6 +80,13 @@ export default class GetRepairService extends BaseHandler {
       ...getSuccessResponse('Repair job fetched successfully.'),
       repairJob: {
         ...plain,
+        // The name snapshotted onto THIS job wins over the shared customer
+        // record's — one mobile number can belong to several people (see
+        // repairJob.model.js). `customerName` stays on the payload too, so
+        // the UI can tell a per-job name from the customer's own.
+        customer: plain.customer
+          ? { ...plain.customer, name: plain.customerName ?? plain.customer.name }
+          : plain.customer,
         hasDeviceUnlock: Boolean(unlockRow?.has_unlock),
         repeatRepairs,
         estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),

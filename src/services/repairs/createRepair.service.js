@@ -113,10 +113,16 @@ export default class CreateRepairService extends BaseHandler {
     // Multiple quote components entered together at intake (e.g. "500
     // original", "300 market") — the job's quoted total is the sum of every
     // row's amount; each row's note (if any) is kept alongside it.
+    // A row counts if it carries a figure OR any text — a text-only row
+    // ("screen replacement, price TBD") is a real quote the shop gave and
+    // must be kept, even though it adds nothing to the total.
     const estimateRows = (estimates ?? [])
-      .map((row) => ({ amount: round2(row.amount), note: row.note?.trim() || null }))
-      .filter((row) => row.amount > 0);
-    const estimatedCost = estimateRows.length
+      .map((row) => ({ amount: round2(row.amount ?? 0), note: row.note?.trim() || null }))
+      .filter((row) => row.amount > 0 || row.note);
+    // Left null unless at least one row carried a real figure — a job quoted
+    // only in words has no total, and printing "₹0.00" for it would read as
+    // "we quoted them nothing".
+    const estimatedCost = estimateRows.some((row) => row.amount > 0)
       ? round2(estimateRows.reduce((sum, row) => sum + row.amount, 0))
       : null;
 
@@ -124,6 +130,9 @@ export default class CreateRepairService extends BaseHandler {
       {
         receiptNumber,
         customerId: customer.id,
+        // Snapshot the name typed for THIS visit, not whatever the shared
+        // mobile number was first saved under — see repairJob.model.js.
+        customerName: String(customerName).trim(),
         engineerId: engineerId ?? null,
         leadSource: leadSource ?? null,
         leadHandlerId: leadHandlerId ?? null,

@@ -99,7 +99,13 @@ export default class GetRepairsService extends BaseHandler {
         modelNumber: plain.modelNumber,
         imei: plain.imei,
         customer: plain.customer
-          ? { id: plain.customer.id, name: plain.customer.name, mobile: plain.customer.mobile }
+          ? {
+              id: plain.customer.id,
+              // Per-job snapshot wins — one shared mobile number can belong
+              // to several people (see repairJob.model.js).
+              name: plain.customerName ?? plain.customer.name,
+              mobile: plain.customer.mobile,
+            }
           : null,
         engineer: plain.engineer ? { id: plain.engineer.id, name: plain.engineer.name } : null,
         leadSource: plain.leadSource,

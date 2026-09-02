@@ -81,7 +81,11 @@ export default class GetReceiptDataService extends BaseHandler {
         receiptNumber: plain.receiptNumber,
         receivedAt: plain.receivedAt,
         customer: {
-          name: plain.customer?.name ?? '',
+          // The name snapshotted onto THIS job wins over the shared
+          // customer record's — see repairJob.model.js. Older jobs created
+          // before that column existed fall back to the customer record,
+          // which is exactly what they printed at the time.
+          name: plain.customerName ?? plain.customer?.name ?? '',
           mobile: plain.customer?.mobile ?? '',
           // Printed on the slip so the shop can find the customer again.
           address: plain.customer?.address ?? '',

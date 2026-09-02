@@ -29,6 +29,16 @@ module.exports = function (sequelize, DataTypes) {
         references: { model: 'engineers', key: 'id' },
       },
 
+      // The customer's name AS GIVEN for THIS job, snapshotted.
+      //
+      // Customers are keyed by mobile number, but one number is regularly
+      // shared (a family, a shop's landline) — whoever hands the phone over
+      // is not always the person that number was first saved under. Reading
+      // the name live off `customers` printed the FIRST person's name on
+      // everyone else's receipt, and correcting it rewrote older receipts
+      // too. Same reasoning as `repair_ledger.customer_name`.
+      customerName: { type: DataTypes.STRING(120), allowNull: true, field: 'customer_name' },
+
       // Per-visit attribution, snapshotted as text (see leadSource.model.js).
       leadSource: { type: DataTypes.STRING(60), allowNull: true, field: 'lead_source' },
       leadHandlerId: {

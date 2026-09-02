@@ -48,12 +48,15 @@ const createRepairSchema = {
       // Multiple quote components entered together at intake (e.g. "500
       // original", "300 market") — each becomes its own append-only estimate
       // row; the job's quoted total is the sum of every row's amount.
+      // `amount` may legitimately be 0: a row can be pure text ("screen
+      // replacement, price TBD") with no figure in it. Such a row still has
+      // to be stored — rejecting it silently lost quotes staff had typed.
       estimates: {
         type: 'array',
         items: {
           type: 'object',
           properties: {
-            amount: { type: 'number', exclusiveMinimum: 0 },
+            amount: { type: 'number', minimum: 0 },
             note: { type: 'string', maxLength: 255, nullable: true },
           },
           required: ['amount'],
