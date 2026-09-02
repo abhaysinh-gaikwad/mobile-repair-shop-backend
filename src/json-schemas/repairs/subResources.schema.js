@@ -110,17 +110,37 @@ export const addCallLogSchema = {
 };
 
 // ------------------------------------------------------------- estimates
+// `amount` may be 0: a component can be pure text ("screen, price TBD")
+// with no figure in it yet — see manageEstimates.service.js.
+const estimateBody = {
+  type: 'object',
+  properties: {
+    amount: { type: 'number', minimum: 0 },
+    note: { type: 'string', maxLength: 255, nullable: true },
+  },
+  required: ['amount'],
+  additionalProperties: false,
+};
+
+const estimateIdParams = {
+  type: 'object',
+  properties: {
+    id: { type: 'integer', minimum: 1 },
+    estimateId: { type: 'integer', minimum: 1 },
+  },
+  required: ['id', 'estimateId'],
+};
+
 export const addEstimateSchema = {
   params: jobIdParams,
-  body: {
-    type: 'object',
-    properties: {
-      amount: { type: 'number', exclusiveMinimum: 0 },
-      note: { type: 'string', maxLength: 255, nullable: true },
-    },
-    required: ['amount'],
-    additionalProperties: false,
-  },
+  body: estimateBody,
 };
+
+export const updateEstimateSchema = {
+  params: estimateIdParams,
+  body: estimateBody,
+};
+
+export const estimateIdParamsSchema = { params: estimateIdParams };
 
 export const jobIdParamsSchema = { params: jobIdParams };

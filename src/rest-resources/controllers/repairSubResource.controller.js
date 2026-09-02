@@ -1,6 +1,11 @@
 import { sendResponse } from '@src/helpers/response.helpers';
 import { AddCallLogService, GetCallLogsService } from '@src/services/callLogs/manageCallLogs.service';
-import { AddEstimateService, GetEstimatesService } from '@src/services/estimates/manageEstimates.service';
+import {
+  AddEstimateService,
+  DeleteEstimateService,
+  GetEstimatesService,
+  UpdateEstimateService,
+} from '@src/services/estimates/manageEstimates.service';
 import { AddPartService, DeletePartService, UpdatePartService } from '@src/services/parts/manageParts.service';
 import AddPaymentService from '@src/services/payments/addPayment.service';
 import GetPaymentsService from '@src/services/payments/getPayments.service';
@@ -127,6 +132,30 @@ export default class RepairSubResourceController {
   static async getEstimates(req, res, next) {
     try {
       const data = await GetEstimatesService.execute({ repairJobId: Number(req.params.id) }, req.context);
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async updateEstimate(req, res, next) {
+    try {
+      const data = await UpdateEstimateService.execute(
+        { repairJobId: Number(req.params.id), estimateId: Number(req.params.estimateId), ...req.body },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async deleteEstimate(req, res, next) {
+    try {
+      const data = await DeleteEstimateService.execute(
+        { repairJobId: Number(req.params.id), estimateId: Number(req.params.estimateId) },
+        req.context,
+      );
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

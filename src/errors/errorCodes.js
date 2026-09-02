@@ -267,6 +267,13 @@ export const Errors = Object.freeze({
     code: 7503,
     httpStatusCode: StatusCodes.NOT_FOUND,
   },
+  ESTIMATE_NOT_FOUND: {
+    name: 'EstimateNotFound',
+    message: 'Estimate not found',
+    explanation: 'No estimate exists with the supplied id on this repair.',
+    code: 7504,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
 
   // ---- Call logs (8xxx) ----
   CALL_LOG_NOT_FOUND: {

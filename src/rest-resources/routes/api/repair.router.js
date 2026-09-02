@@ -15,9 +15,11 @@ import {
   addEstimateSchema,
   addPartSchema,
   addPaymentSchema,
+  estimateIdParamsSchema,
   jobIdParamsSchema,
   partIdParamsSchema,
   reversePaymentSchema,
+  updateEstimateSchema,
   updatePartSchema,
 } from '@src/json-schemas/repairs/subResources.schema';
 import { getNotificationsSchema, sendReceiptSchema } from '@src/json-schemas/whatsapp/whatsapp.schema';
@@ -204,8 +206,9 @@ repairRouter.get(
 );
 
 // --------------------------------------------------------------- estimates
-// Append-only, same reasoning as call logs: a revised quote is a new row,
-// never an edit — "what did we actually tell the customer" must stay reliable.
+// Editable/deletable at the shop's request — see manageEstimates.service.js
+// for the trade-off this accepts (a past quote can change with no record
+// that it differed). Unlike payments/call logs, which stay append-only.
 repairRouter.post(
   '/:id/estimates',
   contextMiddleware(true),
@@ -220,6 +223,22 @@ repairRouter.get(
   isAuthenticated(),
   requestValidationMiddleware(jobIdParamsSchema),
   RepairSubResourceController.getEstimates,
+);
+
+repairRouter.put(
+  '/:id/estimates/:estimateId',
+  contextMiddleware(true),
+  isAuthenticated(),
+  requestValidationMiddleware(updateEstimateSchema),
+  RepairSubResourceController.updateEstimate,
+);
+
+repairRouter.delete(
+  '/:id/estimates/:estimateId',
+  contextMiddleware(true),
+  isAuthenticated(),
+  requestValidationMiddleware(estimateIdParamsSchema),
+  RepairSubResourceController.deleteEstimate,
 );
 
 // --------------------------------------------------------------- whatsapp
