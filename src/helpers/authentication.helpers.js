@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 
 import config from '@src/configs/app.config';
-import { TOKEN_TYPE } from '@src/utils/constants/public.constants';
+import { ADMIN_ROLE, TOKEN_TYPE } from '@src/utils/constants/public.constants';
 
 const SALT_ROUNDS = 10;
 
@@ -16,6 +16,10 @@ export const generateLoginToken = (adminUser) =>
       id: adminUser.id,
       email: adminUser.email,
       name: adminUser.name,
+      // Falls back to OWNER for the generic { id, email, name } identity
+      // receiptPdf.utils.js builds when the real admin lookup fails — that
+      // path only ever renders a print page, never a role-gated action.
+      role: adminUser.role ?? ADMIN_ROLE.OWNER,
       tokenType: TOKEN_TYPE.LOGIN,
     },
     config.get('jwt.loginTokenSecret'),

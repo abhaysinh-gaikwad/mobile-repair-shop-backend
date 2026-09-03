@@ -13,6 +13,7 @@ import {
   supplierRouter,
   whatsappWebRouter,
 } from './misc.router';
+import rateCardRouter from './rateCard.router';
 import repairRouter from './repair.router';
 
 const apiRouter = express.Router();
@@ -29,5 +30,6 @@ apiRouter.use('/reports', reportRouter);
 apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/settings', settingRouter);
 apiRouter.use('/whatsapp/web', whatsappWebRouter);
+apiRouter.use('/rate-card', rateCardRouter);
 
 export default apiRouter;

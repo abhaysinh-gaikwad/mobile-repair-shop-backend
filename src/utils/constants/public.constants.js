@@ -172,3 +172,18 @@ export const WHATSAPP_MESSAGE_TYPE = Object.freeze({
   RECEIPT: 'RECEIPT',
   JOB_DONE: 'JOB_DONE',
 });
+
+/**
+ * Minimal role split, added specifically to gate Rate Card management
+ * (telecallers should see prices, not change them). Every other page in the
+ * app is deliberately left open to any logged-in admin, exactly as before —
+ * this is not a general permissions system, just one door with a lock on it.
+ * OWNER is the default for every existing/new account unless set otherwise,
+ * so nobody is locked out of anything by this column's mere existence.
+ */
+export const ADMIN_ROLE = Object.freeze({
+  OWNER: 'OWNER',
+  STAFF: 'STAFF',
+});
+
+export const ACTIVE_ADMIN_ROLES = Object.freeze(Object.values(ADMIN_ROLE));

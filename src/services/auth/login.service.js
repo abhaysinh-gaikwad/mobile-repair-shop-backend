@@ -30,6 +30,7 @@ export default class LoginService extends BaseHandler {
         id: adminUser.id,
         name: adminUser.name,
         email: adminUser.email,
+        role: adminUser.role,
       },
     };
   }

@@ -54,6 +54,13 @@ export const Errors = Object.freeze({
     code: 2003,
     httpStatusCode: StatusCodes.FORBIDDEN,
   },
+  FORBIDDEN: {
+    name: 'Forbidden',
+    message: 'You do not have permission to do this',
+    explanation: 'This action is restricted to the shop owner.',
+    code: 2004,
+    httpStatusCode: StatusCodes.FORBIDDEN,
+  },
   CURRENT_PASSWORD_INCORRECT: {
     name: 'CurrentPasswordIncorrect',
     message: 'Your current password is incorrect',
@@ -299,6 +306,78 @@ export const Errors = Object.freeze({
     code: 9000,
     httpStatusCode: StatusCodes.NOT_FOUND,
   }),
+
+  // ---- Rate Card (10xxx) ----
+  RATE_CARD_BRAND_NOT_FOUND: {
+    name: 'RateCardBrandNotFound',
+    message: 'Brand not found',
+    explanation: 'No rate card brand exists with the supplied id.',
+    code: 10000,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RATE_CARD_BRAND_EXISTS: (name) => ({
+    name: 'RateCardBrandExists',
+    message: `Brand "${name}" already exists`,
+    explanation: 'Use the existing brand instead of creating a duplicate.',
+    code: 10001,
+    httpStatusCode: StatusCodes.CONFLICT,
+  }),
+  RATE_CARD_MODEL_NOT_FOUND: {
+    name: 'RateCardModelNotFound',
+    message: 'Model not found',
+    explanation: 'No rate card model exists with the supplied id.',
+    code: 10002,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RATE_CARD_MODEL_EXISTS: (name) => ({
+    name: 'RateCardModelExists',
+    message: `Model "${name}" already exists for this brand`,
+    explanation: 'Use the existing model instead of creating a duplicate.',
+    code: 10003,
+    httpStatusCode: StatusCodes.CONFLICT,
+  }),
+  RATE_CARD_PART_NOT_FOUND: {
+    name: 'RateCardPartNotFound',
+    message: 'Part not found',
+    explanation: 'No rate card part exists with the supplied id.',
+    code: 10004,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RATE_CARD_PART_EXISTS: (name) => ({
+    name: 'RateCardPartExists',
+    message: `Part "${name}" already exists`,
+    explanation: 'Use the existing part instead of creating a duplicate.',
+    code: 10005,
+    httpStatusCode: StatusCodes.CONFLICT,
+  }),
+  RATE_TYPE_NOT_FOUND: {
+    name: 'RateTypeNotFound',
+    message: 'Rate type not found',
+    explanation: 'No rate type exists with the supplied id.',
+    code: 10006,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RATE_TYPE_EXISTS: (name) => ({
+    name: 'RateTypeExists',
+    message: `Rate type "${name}" already exists`,
+    explanation: 'Use the existing rate type instead of creating a duplicate.',
+    code: 10007,
+    httpStatusCode: StatusCodes.CONFLICT,
+  }),
+  RATE_CARD_ENTRY_NOT_FOUND: {
+    name: 'RateCardEntryNotFound',
+    message: 'Rate not found',
+    explanation: 'No rate exists with the supplied id.',
+    code: 10008,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RATE_CARD_ENTRY_EXISTS: {
+    name: 'RateCardEntryExists',
+    message: 'A rate of this type already exists for this model and part',
+    explanation: 'Edit the existing rate instead of adding a duplicate rate type.',
+    code: 10009,
+    httpStatusCode: StatusCodes.CONFLICT,
+  },
 });
 
 export default Errors;
