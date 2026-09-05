@@ -17,6 +17,7 @@ import {
 import rateCardRouter from './rateCard.router';
 import repairRouter from './repair.router';
 import userRouter from './user.router';
+import whatsappWebhookRouter from './whatsappWebhook.router';
 
 const apiRouter = express.Router();
 
@@ -35,5 +36,9 @@ apiRouter.use('/whatsapp/web', whatsappWebRouter);
 apiRouter.use('/rate-card', rateCardRouter);
 apiRouter.use('/crm', crmRouter);
 apiRouter.use('/users', userRouter);
+
+// Meta's callback. Unauthenticated by necessity (Meta has no login) —
+// authenticity is proved by the request signature instead.
+apiRouter.use('/webhooks/whatsapp', whatsappWebhookRouter);
 
 export default apiRouter;

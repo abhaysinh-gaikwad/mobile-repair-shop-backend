@@ -147,6 +147,20 @@ const config = convict({
       default: 'en',
       env: 'WHATSAPP_TEMPLATE_LANGUAGE',
     },
+    appSecret: {
+      doc: "Meta app secret. Used ONLY to verify the X-Hub-Signature-256 on incoming webhooks — proof a callback really came from Meta and not from anyone who guessed the URL. Never sent anywhere.",
+      format: String,
+      default: '',
+      env: 'WHATSAPP_APP_SECRET',
+      sensitive: true,
+    },
+    webhookVerifyToken: {
+      doc: "A string you invent and paste into Meta's webhook setup form. Meta echoes it back on the one-time GET verification handshake; the value itself is arbitrary, it just has to match on both sides. Generate with `openssl rand -hex 32`.",
+      format: String,
+      default: '',
+      env: 'WHATSAPP_WEBHOOK_VERIFY_TOKEN',
+      sensitive: true,
+    },
     defaultCountryCode: {
       doc: 'Prepended to a saved mobile number when it has no country code, e.g. 91 for India.',
       format: String,

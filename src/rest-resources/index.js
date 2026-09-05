@@ -22,7 +22,23 @@ app.use(
   }),
 );
 app.use(morgan('dev'));
-app.use(express.json({ limit: '1mb' }));
+/**
+ * `verify` keeps the exact bytes Meta signed.
+ *
+ * The WhatsApp webhook's X-Hub-Signature-256 is an HMAC over the RAW request
+ * body. Re-serialising the parsed object would not reproduce it byte for byte
+ * (key order, whitespace, unicode escapes), so the signature could never be
+ * checked — and an unverified webhook is an open endpoint anyone who learns
+ * the URL can post fake leads to.
+ */
+app.use(
+  express.json({
+    limit: '1mb',
+    verify: (req, _res, buffer) => {
+      req.rawBody = buffer;
+    },
+  }),
+);
 app.use(express.urlencoded({ extended: true }));
 
 app.use(routes);
