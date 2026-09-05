@@ -46,7 +46,22 @@ WORKDIR /app
 # where build-time and runtime are separate filesystem layers.
 ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
+# Whether to pull Chromium into the image.
+#
+# Defaults to SKIPPING it: both things that use Chrome (WhatsApp Web, and the
+# receipt-PDF renderer that exists to attach a PDF to a WhatsApp message) are
+# inactive while WHATSAPP_PROVIDER=disabled, and the download is ~180MB
+# unpacking to ~450MB — the heaviest step of a rebuild on a ~950MB host that
+# has already hung twice from memory exhaustion.
+#
+# Build with --build-arg PUPPETEER_SKIP_DOWNLOAD=false before switching
+# WHATSAPP_PROVIDER back to `web`, or Puppeteer fails with "Could not find
+# Chrome" at runtime. See scripts/install-chrome.js.
+ARG PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_SKIP_DOWNLOAD=$PUPPETEER_SKIP_DOWNLOAD
+
 COPY package.json package-lock.json ./
+COPY scripts ./scripts
 RUN npm ci
 
 COPY . .
