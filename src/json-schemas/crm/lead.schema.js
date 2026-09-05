@@ -1,6 +1,7 @@
 import {
   ACTIVE_LEAD_SOURCES,
   ACTIVE_LEAD_STATUSES,
+  LEAD_STATUS_GROUP,
 } from '@src/utils/constants/public.constants';
 
 const idParams = {
@@ -41,8 +42,12 @@ export const getLeadsSchema = {
       page: { type: 'integer', minimum: 1, default: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
       status: { type: 'string', enum: ACTIVE_LEAD_STATUSES },
+      // Coarse filter over the 17 statuses — "still working it / won / lost".
+      statusGroup: { type: 'string', enum: Object.values(LEAD_STATUS_GROUP) },
       source: { type: 'string', enum: ACTIVE_LEAD_SOURCES },
       assignedTo: { type: 'integer', minimum: 1 },
+      // 0 means "not assigned to anybody" — a real filter with 2,963 of them.
+      unassigned: { type: 'boolean' },
       search: { type: 'string', maxLength: 120 },
     },
     additionalProperties: false,
@@ -58,12 +63,15 @@ export const updateLeadSchema = {
     properties: {
       customerName: { type: 'string', maxLength: 120 },
       mobile: { type: 'string', maxLength: 20 },
+      location: { type: 'string', maxLength: 120 },
       brand: { type: 'string', maxLength: 60 },
       modelNumber: { type: 'string', maxLength: 80 },
       problem: { type: 'string' },
+      quotedRate: { type: 'string', maxLength: 120 },
       enquiry: { type: 'string' },
       notes: { type: 'string' },
       status: { type: 'string', enum: ACTIVE_LEAD_STATUSES },
+      nextActionDate: { type: 'string' },
       repairJobId: { type: 'integer', minimum: 1 },
     },
     additionalProperties: false,

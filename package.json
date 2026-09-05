@@ -1,7 +1,7 @@
 {
   "name": "mobile-repair-shop-backend",
   "version": "1.0.0",
-  "description": "Mobile Repair Shop Management System — API",
+  "description": "Mobile Repair Shop Management System \u2014 API",
   "main": "index.js",
   "engines": {
     "node": ">=20.0.0"
@@ -23,7 +23,8 @@
     "lint": "eslint src index.js --ext .js",
     "lint:fix": "eslint src index.js --ext .js --fix",
     "format": "prettier --write \"src/**/*.js\" index.js",
-    "format:check": "prettier --check \"src/**/*.js\" index.js"
+    "format:check": "prettier --check \"src/**/*.js\" index.js",
+    "crm:import": "babel-node scripts/import-legacy-crm.js"
   },
   "author": "",
   "license": "ISC",

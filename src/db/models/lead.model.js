@@ -23,6 +23,29 @@ module.exports = function (sequelize, DataTypes) {
        */
       mobileNormalized: { type: DataTypes.STRING(10), allowNull: true, field: 'mobile_normalized' },
 
+      /** Where the customer is — drives the OUT_OF_LOCATION status. */
+      location: { type: DataTypes.STRING(120), allowNull: true },
+
+      /**
+       * The price quoted, as free TEXT. Real values are like "6500/-/ 9200"
+       * (two grades of part) — a numeric column would silently drop half of
+       * what the customer was actually told.
+       */
+      quotedRate: { type: DataTypes.STRING(120), allowNull: true, field: 'quoted_rate' },
+
+      // When it came in / was last called. Distinct from createdAt, which for
+      // imported rows is just when the import ran.
+      enquiryDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'enquiry_date' },
+      lastCallDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'last_call_date' },
+      nextActionDate: { type: DataTypes.DATEONLY, allowNull: true, field: 'next_action_date' },
+
+      /**
+       * Which ROW of the shop's spreadsheet this came from — traceability, and
+       * the key that makes re-importing update instead of duplicate. Their own
+       * SR.NO column is filled on only 6 of 3,421 rows, so it cannot serve.
+       */
+      legacyRowNo: { type: DataTypes.INTEGER, allowNull: true, field: 'legacy_row_no' },
+
       source: { type: DataTypes.STRING(20), allowNull: false, defaultValue: 'MANUAL' },
       enquiry: { type: DataTypes.TEXT, allowNull: true },
       brand: { type: DataTypes.STRING(60), allowNull: true },

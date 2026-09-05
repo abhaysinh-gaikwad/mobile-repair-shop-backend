@@ -5,3 +5,7 @@ dist
 .env
 .git
 *.log
+
+# The source spreadsheet stays in git for reference, but the running
+# container only needs the converted JSON beside it.
+*.xlsx

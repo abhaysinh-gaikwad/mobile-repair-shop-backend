@@ -377,48 +377,108 @@ export const LEAD_SOURCE_LABELS = Object.freeze({
 });
 
 /**
- * The lead pipeline, in order. Deliberately short — a repair shop's telecaller
- * needs to know "have I called them, are they coming, did they show up", not
- * a nine-stage sales funnel.
+ * Lead statuses — the shop's OWN vocabulary, taken from the "CALL STATUS"
+ * column of their existing CRM spreadsheet rather than invented here.
  *
- * CONVERTED is the one that matters: it means the customer actually turned up
- * and a repair job was booked, and the lead carries the resulting
- * `repair_job_id` so the CRM and the workshop are genuinely linked rather
- * than two parallel worlds.
+ * The generic NEW/CONTACTED/FOLLOW_UP set that was here first was replaced
+ * once the real sheet arrived: telecallers already think in "ringing",
+ * "switch off", "out of coverage", and asking them to translate that into
+ * someone else's words is how a CRM stops being used. Every value below
+ * appears in their data.
+ *
+ * STRING-backed (see REPAIR_STATUS) so this list can grow without a migration.
  */
 export const LEAD_STATUS = Object.freeze({
   NEW: 'NEW',
-  CONTACTED: 'CONTACTED',
-  FOLLOW_UP: 'FOLLOW_UP',
-  VISIT_EXPECTED: 'VISIT_EXPECTED',
-  CONVERTED: 'CONVERTED',
+  INTERESTED: 'INTERESTED',
+  RINGING: 'RINGING',
+  CALL_BACK: 'CALL_BACK',
+  OUT_OF_COVERAGE: 'OUT_OF_COVERAGE',
+  OUT_OF_LOCATION: 'OUT_OF_LOCATION',
+  SWITCH_OFF: 'SWITCH_OFF',
+  MATERIAL_NOT_AVAILABLE: 'MATERIAL_NOT_AVAILABLE',
+  RATES_GIVEN: 'RATES_GIVEN',
+  OTHER: 'OTHER',
+  // ---- finished, won ----
+  SHOP_VISIT_DONE: 'SHOP_VISIT_DONE',
+  WORK_DONE: 'WORK_DONE',
+  // ---- finished, lost ----
   NOT_INTERESTED: 'NOT_INTERESTED',
-  LOST: 'LOST',
+  NOT_DONE: 'NOT_DONE',
+  JUST_TO_SAVE_NUMBER: 'JUST_TO_SAVE_NUMBER',
+  SECOND_HAND_MOBILE: 'SECOND_HAND_MOBILE',
+  WANT_TO_JOIN_CLASS: 'WANT_TO_JOIN_CLASS',
 });
 
 export const ACTIVE_LEAD_STATUSES = Object.freeze(Object.values(LEAD_STATUS));
 
+/** Their spelling, corrected only where it was a typo (INTRESTED -> Interested). */
 export const LEAD_STATUS_LABELS = Object.freeze({
   [LEAD_STATUS.NEW]: 'New',
-  [LEAD_STATUS.CONTACTED]: 'Contacted',
-  [LEAD_STATUS.FOLLOW_UP]: 'Follow Up',
-  [LEAD_STATUS.VISIT_EXPECTED]: 'Visit Expected',
-  [LEAD_STATUS.CONVERTED]: 'Converted',
+  [LEAD_STATUS.INTERESTED]: 'Interested',
+  [LEAD_STATUS.RINGING]: 'Ringing',
+  [LEAD_STATUS.CALL_BACK]: 'Call Back',
+  [LEAD_STATUS.OUT_OF_COVERAGE]: 'Out of Coverage',
+  [LEAD_STATUS.OUT_OF_LOCATION]: 'Out of Location',
+  [LEAD_STATUS.SWITCH_OFF]: 'Switch Off',
+  [LEAD_STATUS.MATERIAL_NOT_AVAILABLE]: 'Material Not Available',
+  [LEAD_STATUS.RATES_GIVEN]: 'Rates Given',
+  [LEAD_STATUS.OTHER]: 'Other',
+  [LEAD_STATUS.SHOP_VISIT_DONE]: 'Shop Visit Done',
+  [LEAD_STATUS.WORK_DONE]: 'Work Done',
   [LEAD_STATUS.NOT_INTERESTED]: 'Not Interested',
-  [LEAD_STATUS.LOST]: 'Lost',
+  [LEAD_STATUS.NOT_DONE]: 'Not Done',
+  [LEAD_STATUS.JUST_TO_SAVE_NUMBER]: 'Just To Save Number',
+  [LEAD_STATUS.SECOND_HAND_MOBILE]: 'Second Hand Mobile',
+  [LEAD_STATUS.WANT_TO_JOIN_CLASS]: 'Wants To Join Class',
 });
 
 /**
- * Statuses that mean the lead is finished. A repeat enquiry from the same
- * mobile number is folded into an OPEN lead rather than creating a second
- * one; if every previous lead is CLOSED, a NEW lead is created — but it still
- * goes to whoever owned the last one (sticky ownership), never back through
- * the rotation. See AssignLeadService.
+ * Seventeen statuses is a lot to scan, so each one belongs to exactly one of
+ * three groups. The board is filtered and coloured by GROUP — "is this still
+ * being worked, did we win it, did we lose it" — which is the only question
+ * anyone actually asks of the whole list at once.
+ */
+export const LEAD_STATUS_GROUP = Object.freeze({ OPEN: 'OPEN', WON: 'WON', LOST: 'LOST' });
+
+export const LEAD_STATUS_GROUPS = Object.freeze({
+  [LEAD_STATUS_GROUP.OPEN]: Object.freeze([
+    LEAD_STATUS.NEW,
+    LEAD_STATUS.INTERESTED,
+    LEAD_STATUS.RINGING,
+    LEAD_STATUS.CALL_BACK,
+    LEAD_STATUS.OUT_OF_COVERAGE,
+    LEAD_STATUS.OUT_OF_LOCATION,
+    LEAD_STATUS.SWITCH_OFF,
+    LEAD_STATUS.MATERIAL_NOT_AVAILABLE,
+    LEAD_STATUS.RATES_GIVEN,
+    LEAD_STATUS.OTHER,
+  ]),
+  // The customer actually turned up, or the job was completed.
+  [LEAD_STATUS_GROUP.WON]: Object.freeze([LEAD_STATUS.SHOP_VISIT_DONE, LEAD_STATUS.WORK_DONE]),
+  [LEAD_STATUS_GROUP.LOST]: Object.freeze([
+    LEAD_STATUS.NOT_INTERESTED,
+    LEAD_STATUS.NOT_DONE,
+    LEAD_STATUS.JUST_TO_SAVE_NUMBER,
+    LEAD_STATUS.SECOND_HAND_MOBILE,
+    LEAD_STATUS.WANT_TO_JOIN_CLASS,
+  ]),
+});
+
+export const groupForLeadStatus = (status) =>
+  Object.keys(LEAD_STATUS_GROUPS).find((group) => LEAD_STATUS_GROUPS[group].includes(status)) ??
+  LEAD_STATUS_GROUP.OPEN;
+
+/**
+ * Statuses that mean the lead is finished — won or lost.
+ *
+ * Drives duplicate handling: a repeat enquiry is folded into an OPEN lead
+ * rather than creating a second one, while a customer whose previous lead is
+ * CLOSED gets a new lead that still goes back to their original telecaller.
  */
 export const CLOSED_LEAD_STATUSES = Object.freeze([
-  LEAD_STATUS.CONVERTED,
-  LEAD_STATUS.NOT_INTERESTED,
-  LEAD_STATUS.LOST,
+  ...LEAD_STATUS_GROUPS[LEAD_STATUS_GROUP.WON],
+  ...LEAD_STATUS_GROUPS[LEAD_STATUS_GROUP.LOST],
 ]);
 
 export const isClosedLeadStatus = (status) => CLOSED_LEAD_STATUSES.includes(status);

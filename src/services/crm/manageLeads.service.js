@@ -10,6 +10,7 @@ import {
   CLOSED_LEAD_STATUSES,
   LEAD_SOURCE,
   LEAD_STATUS,
+  LEAD_STATUS_GROUPS,
   PERMISSION_ACTION,
   PERMISSION_MODULE,
   permission,
@@ -143,20 +144,34 @@ export class CreateLeadService extends BaseHandler {
 
 export class GetLeadsService extends BaseHandler {
   async run() {
-    const { adminUser, status, source, assignedTo, search, page = 1, limit = 50 } = this.args;
+    const { adminUser, status, statusGroup, source, assignedTo, unassigned, search, page = 1, limit = 50 } =
+      this.args;
 
     const where = {};
     if (status) where.status = status;
+    // A specific status always wins over the coarse group filter.
+    else if (statusGroup) where.status = { [Op.in]: LEAD_STATUS_GROUPS[statusGroup] ?? [] };
     if (source) where.source = source;
 
     // A telecaller's own filter can only ever narrow their own leads — it can
     // never be used to look at a colleague's board.
     if (scopeToOwnLeads(adminUser)) where.assignedTo = adminUser.id;
+    else if (unassigned) where.assignedTo = null;
     else if (assignedTo) where.assignedTo = Number(assignedTo);
 
     if (search) {
       const like = { [Op.iLike]: `%${String(search).trim()}%` };
-      where[Op.or] = [{ customerName: like }, { mobile: like }, { brand: like }, { modelNumber: like }];
+      // Location and problem included: with thousands of rows, "who did we
+      // quote in Kolhapur" and "who had a display fault" are the searches
+      // that actually get typed.
+      where[Op.or] = [
+        { customerName: like },
+        { mobile: like },
+        { brand: like },
+        { modelNumber: like },
+        { location: like },
+        { problem: like },
+      ];
     }
 
     const offset = (Math.max(1, Number(page)) - 1) * Number(limit);
@@ -169,7 +184,32 @@ export class GetLeadsService extends BaseHandler {
       offset,
     });
 
-    return { ...getSuccessResponse('Leads fetched successfully.'), leads: rows, total: count, page: Number(page) };
+    // Counts per group for the summary tiles, over the SAME filters but
+    // ignoring the status filter itself — otherwise clicking "Won" would show
+    // "Won: n, Open: 0", which reads as though the other leads had vanished.
+    const countWhere = { ...where };
+    delete countWhere.status;
+    const grouped = await db.Lead.findAll({
+      attributes: ['status', [db.sequelize.fn('COUNT', db.sequelize.col('id')), 'n']],
+      where: countWhere,
+      group: ['status'],
+      raw: true,
+    });
+    const groupCounts = Object.fromEntries(
+      Object.entries(LEAD_STATUS_GROUPS).map(([group, statuses]) => [
+        group,
+        grouped.filter((row) => statuses.includes(row.status)).reduce((sum, row) => sum + Number(row.n), 0),
+      ]),
+    );
+
+    return {
+      ...getSuccessResponse('Leads fetched successfully.'),
+      leads: rows,
+      total: count,
+      page: Number(page),
+      limit: Number(limit),
+      groupCounts,
+    };
   }
 }
 
