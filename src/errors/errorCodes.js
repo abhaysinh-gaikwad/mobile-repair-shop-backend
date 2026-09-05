@@ -139,6 +139,83 @@ export const Errors = Object.freeze({
     code: 5001,
     httpStatusCode: StatusCodes.BAD_REQUEST,
   },
+  LEDGER_INVALID_MANUAL_AMOUNT: {
+    name: 'LedgerInvalidManualAmount',
+    message: 'A manual Cash Memo entry must be greater than zero',
+    explanation:
+      'This records money RECEIVED. To record money the shop spent, add a shop expense instead; to undo an entry, reverse it.',
+    code: 7520,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
+  LEDGER_NOT_A_MANUAL_ENTRY: {
+    name: 'LedgerNotAManualEntry',
+    message: 'This entry belongs to a repair receipt',
+    explanation:
+      'Reverse it from the repair job itself, so the job balance is recalculated at the same time.',
+    code: 7521,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
+
+  // ---- CRM / users (77xx) ----
+  LEAD_NOT_FOUND: {
+    name: 'LeadNotFound',
+    message: 'Lead not found',
+    explanation: 'No lead exists with the supplied id.',
+    code: 7700,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  NO_ELIGIBLE_TELECALLER: {
+    name: 'NoEligibleTelecaller',
+    message: 'No telecaller is available to take this lead',
+    explanation:
+      'Every telecaller is deactivated, on leave or unavailable. The lead was saved unassigned — mark someone available, or assign it by hand.',
+    code: 7701,
+    httpStatusCode: StatusCodes.CONFLICT,
+  },
+  NOT_A_TELECALLER: {
+    name: 'NotATelecaller',
+    message: 'Leads can only be assigned to a telecaller',
+    explanation: 'The selected user does not have the Telecaller role, or their account is deactivated.',
+    code: 7702,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
+  USER_NOT_FOUND: {
+    name: 'UserNotFound',
+    message: 'User not found',
+    explanation: 'No user account exists with the supplied id.',
+    code: 7703,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  EMAIL_ALREADY_EXISTS: (email) => ({
+    name: 'EmailAlreadyExists',
+    message: `An account already uses ${email}`,
+    explanation: 'Email addresses must be unique. Use a different one, or edit the existing account.',
+    code: 7704,
+    httpStatusCode: StatusCodes.CONFLICT,
+  }),
+  CANNOT_MODIFY_OWN_ACCOUNT: {
+    name: 'CannotModifyOwnAccount',
+    message: 'You cannot change your own role, permissions or active status',
+    explanation:
+      'This guard exists so a Super Admin cannot accidentally lock themselves — and possibly the whole shop — out of User Management. Ask another Super Admin, or change a different account.',
+    code: 7705,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
+  LAST_SUPER_ADMIN: {
+    name: 'LastSuperAdmin',
+    message: 'The last Super Admin cannot be removed or demoted',
+    explanation: 'At least one active Super Admin must always exist, or nobody could manage users again.',
+    code: 7706,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
+  ACCOUNT_DEACTIVATED: {
+    name: 'AccountDeactivated',
+    message: 'This account has been deactivated',
+    explanation: 'Ask the Super Admin to reactivate it from User Management.',
+    code: 7707,
+    httpStatusCode: StatusCodes.FORBIDDEN,
+  },
+
   LEAD_HANDLER_NOT_FOUND: {
     name: 'LeadHandlerNotFound',
     message: 'Lead handler not found',
@@ -237,6 +314,18 @@ export const Errors = Object.freeze({
     code: 7602,
     httpStatusCode: StatusCodes.BAD_GATEWAY,
   }),
+  // WhatsApp sending is switched off at the server (WHATSAPP_PROVIDER=disabled).
+  // Deliberately distinct from WHATSAPP_NOT_CONFIGURED ("set up but broken /
+  // not connected") — this one means "intentionally off", which is not a
+  // fault the shop staff should try to fix by re-scanning a QR code.
+  WHATSAPP_DISABLED: {
+    name: 'WhatsAppDisabled',
+    message: 'WhatsApp sending is currently turned off',
+    explanation:
+      'WHATSAPP_PROVIDER is set to "disabled" on the server. The receipt can still be printed or downloaded as usual. WhatsApp will come back on once the official WhatsApp Cloud API is configured.',
+    code: 7604,
+    httpStatusCode: StatusCodes.SERVICE_UNAVAILABLE,
+  },
   WHATSAPP_NOTIFICATION_NOT_FOUND: {
     name: 'WhatsAppNotificationNotFound',
     message: 'WhatsApp notification not found',

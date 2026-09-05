@@ -1,6 +1,7 @@
 import express from 'express';
 
 import authRouter from './auth.router';
+import crmRouter from './crm.router';
 import engineerRouter from './engineer.router';
 import {
   billingRouter,
@@ -15,6 +16,7 @@ import {
 } from './misc.router';
 import rateCardRouter from './rateCard.router';
 import repairRouter from './repair.router';
+import userRouter from './user.router';
 
 const apiRouter = express.Router();
 
@@ -31,5 +33,7 @@ apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/settings', settingRouter);
 apiRouter.use('/whatsapp/web', whatsappWebRouter);
 apiRouter.use('/rate-card', rateCardRouter);
+apiRouter.use('/crm', crmRouter);
+apiRouter.use('/users', userRouter);
 
 export default apiRouter;

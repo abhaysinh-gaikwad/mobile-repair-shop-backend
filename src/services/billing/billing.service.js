@@ -21,11 +21,12 @@ import { applyDateRangeFilter } from '@src/utils/query.utils';
 
 export class GetCashMemoService extends BaseHandler {
   async run() {
-    const { page = 1, limit = 50, paymentMethod, entryType, search } = this.args;
+    const { page = 1, limit = 50, paymentMethod, entryType, source, search } = this.args;
 
     const where = {};
     if (paymentMethod) where.paymentMethod = paymentMethod;
     if (entryType) where.entryType = entryType;
+    if (source) where.source = source;
 
     // Presets ("This Month") resolve in the shop's timezone; explicit
     // from/to still work for a custom range.
@@ -36,11 +37,18 @@ export class GetCashMemoService extends BaseHandler {
       const term = `%${String(search).trim()}%`;
       // Receipt number and customer name are snapshotted onto the row, so
       // searching the cash memo needs no joins.
+      // `description` and `reference` are how a MANUAL entry is identified —
+      // it has no receipt number to search on, so without these the entries
+      // this search is most likely to be used for would be unfindable.
+      // iLike against a NULL column simply doesn't match, so repair-linked
+      // rows are unaffected.
       where[Op.or] = [
         { receiptNumber: { [Op.iLike]: term } },
         { customerName: { [Op.iLike]: term } },
         { customerMobile: { [Op.iLike]: term } },
         { entryNo: { [Op.iLike]: term } },
+        { description: { [Op.iLike]: term } },
+        { reference: { [Op.iLike]: term } },
       ];
     }
 

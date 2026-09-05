@@ -22,29 +22,35 @@ import RateCardController from '@src/rest-resources/controllers/rateCard.control
 import contextMiddleware from '@src/rest-resources/middlewares/context.middleware';
 import { isAuthenticated } from '@src/rest-resources/middlewares/isAuthenticated';
 import { requestValidationMiddleware } from '@src/rest-resources/middlewares/requestValidation.middleware';
-import { requireOwner } from '@src/rest-resources/middlewares/requireOwner';
+import { requirePermission } from '@src/rest-resources/middlewares/requirePermission';
+import { PERMISSION_ACTION, PERMISSION_MODULE, permission } from '@src/utils/constants/public.constants';
 
 const rateCardRouter = express.Router({ mergeParams: true });
 
 /**
- * VIEW (any logged-in admin, telecallers included): browse brands/models/
- * parts/rate-types and look up prices.
+ * VIEW (RATE_CARD:VIEW — telecallers have it by default): browse brands/
+ * models/parts/rate-types and look up prices.
  *
- * MANAGE (owner only, via requireOwner() after isAuthenticated()): add/edit/
- * toggle brands/models/parts/rate-types, add/edit/delete the price entries
- * themselves. See requireOwner.js — this is the one door in the whole app
- * that currently has a lock on it.
+ * MANAGE (RATE_CARD:EDIT): add/edit/toggle brands/models/parts/rate-types,
+ * add/edit/delete the price entries themselves.
+ *
+ * This was the app's original single hard-coded owner-only door. It is now an
+ * ordinary permission, which is what makes the intended case work: a
+ * telecaller sees prices by default, and the Super Admin can grant ONE of
+ * them RATE_CARD:EDIT individually without promoting them or changing what
+ * every other telecaller can do.
  */
 const read = (schema, handler) => [
   contextMiddleware(false),
   isAuthenticated(),
+  requirePermission(permission(PERMISSION_MODULE.RATE_CARD, PERMISSION_ACTION.VIEW)),
   ...(schema ? [requestValidationMiddleware(schema)] : []),
   handler,
 ];
 const manage = (schema, handler) => [
   contextMiddleware(true),
   isAuthenticated(),
-  requireOwner(),
+  requirePermission(permission(PERMISSION_MODULE.RATE_CARD, PERMISSION_ACTION.EDIT)),
   ...(schema ? [requestValidationMiddleware(schema)] : []),
   handler,
 ];

@@ -5,6 +5,7 @@ import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
 import { isWhatsAppWebReady, sendWebTextMessage, WhatsAppWebNotReadyError } from '@src/integrations/whatsapp/whatsappWebClient';
 import { toWhatsAppNumber } from '@src/integrations/whatsapp/phoneNumber.utils';
+import { isWhatsAppDisabled } from '@src/integrations/whatsapp/whatsappProvider';
 import { WHATSAPP_MESSAGE_TYPE, WHATSAPP_STATUS } from '@src/utils/constants/public.constants';
 import { Logger } from '@src/libs/logger';
 
@@ -23,6 +24,14 @@ import { Logger } from '@src/libs/logger';
 export default class SendJobDoneNotificationService extends BaseHandler {
   async run() {
     const { repairJobId, adminId } = this.args;
+
+    // This runs automatically on every JOB_DONE status change. With sending
+    // switched off it must be a true no-op — returning before any DB write,
+    // so marking a job done doesn't record a FAILED notification that nobody
+    // ever asked for. The status update itself is unaffected either way.
+    if (isWhatsAppDisabled()) {
+      return getSuccessResponse('WhatsApp sending is turned off — job-done message not sent.');
+    }
 
     const repairJob = await db.RepairJob.findByPk(repairJobId, {
       include: [{ model: db.Customer, as: 'customer' }],

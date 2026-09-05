@@ -2,6 +2,7 @@ import db from '@src/db/models';
 import { AppError } from '@src/errors/app.error';
 import { Errors } from '@src/errors/errorCodes';
 import { comparePassword, generateLoginToken } from '@src/helpers/authentication.helpers';
+import { resolvePermissions } from '@src/helpers/permission.helpers';
 import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
 
@@ -31,6 +32,10 @@ export default class LoginService extends BaseHandler {
         name: adminUser.name,
         email: adminUser.email,
         role: adminUser.role,
+        // Sent so the UI can hide what this person cannot do. It is a
+        // CONVENIENCE, never the security boundary — every route re-checks
+        // server-side against the live database row.
+        permissions: resolvePermissions(adminUser),
       },
     };
   }

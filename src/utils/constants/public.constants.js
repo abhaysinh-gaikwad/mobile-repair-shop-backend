@@ -41,12 +41,42 @@ export const LEDGER_ENTRY_TYPE = Object.freeze({
   REVERSAL: 'REVERSAL',
 });
 
-/** Which stage of the job the money was taken at. */
+/**
+ * Which stage of the job the money was taken at.
+ *
+ * MANUAL is the odd one out: it belongs to a Cash Memo entry that has no
+ * repair job at all (see LEDGER_SOURCE), so "which stage" is meaningless for
+ * it. It exists because the column is NOT NULL, and labelling such a row
+ * ADVANCE or FINAL would be an outright lie about money.
+ */
 export const PAYMENT_TYPE = Object.freeze({
   ADVANCE: 'ADVANCE',
   PART: 'PART',
   FINAL: 'FINAL',
+  MANUAL: 'MANUAL',
 });
+
+/** The payment stages that can be chosen against a real repair job. */
+export const REPAIR_PAYMENT_TYPES = Object.freeze([
+  PAYMENT_TYPE.ADVANCE,
+  PAYMENT_TYPE.PART,
+  PAYMENT_TYPE.FINAL,
+]);
+
+/**
+ * Whether a ledger row came from a repair receipt or was entered by hand.
+ *
+ * MANUAL covers both "a customer paid for something with no repair job" and
+ * the shop's older paper records from before this software, many of which
+ * have no receipt number at all. A database CHECK constraint enforces the
+ * shape of each kind — see the 20260905150000 migration.
+ */
+export const LEDGER_SOURCE = Object.freeze({
+  REPAIR_JOB: 'REPAIR_JOB',
+  MANUAL: 'MANUAL',
+});
+
+export const ACTIVE_LEDGER_SOURCES = Object.freeze(Object.values(LEDGER_SOURCE));
 
 /**
  * How a customer paid. Only Cash and Online are offered going forward.
@@ -174,16 +204,221 @@ export const WHATSAPP_MESSAGE_TYPE = Object.freeze({
 });
 
 /**
- * Minimal role split, added specifically to gate Rate Card management
- * (telecallers should see prices, not change them). Every other page in the
- * app is deliberately left open to any logged-in admin, exactly as before —
- * this is not a general permissions system, just one door with a lock on it.
- * OWNER is the default for every existing/new account unless set otherwise,
- * so nobody is locked out of anything by this column's mere existence.
+ * Who someone is in the shop. STRING-backed (see REPAIR_STATUS for why not a
+ * Postgres ENUM).
+ *
+ * SUPER_ADMIN and TELECALLER replace the earlier OWNER/STAFF pair — the
+ * 20260905 migration rewrites existing rows in place, so nobody's access
+ * changes. The old names are gone rather than kept as aliases: two spellings
+ * of the same role is exactly how permission bugs get in.
  */
 export const ADMIN_ROLE = Object.freeze({
-  OWNER: 'OWNER',
-  STAFF: 'STAFF',
+  SUPER_ADMIN: 'SUPER_ADMIN',
+  TELECALLER: 'TELECALLER',
+  MARKETING: 'MARKETING',
+  ENGINEER: 'ENGINEER',
 });
 
 export const ACTIVE_ADMIN_ROLES = Object.freeze(Object.values(ADMIN_ROLE));
+
+export const ADMIN_ROLE_LABELS = Object.freeze({
+  [ADMIN_ROLE.SUPER_ADMIN]: 'Super Admin',
+  [ADMIN_ROLE.TELECALLER]: 'Telecaller / Lead Person',
+  [ADMIN_ROLE.MARKETING]: 'Marketing Person',
+  [ADMIN_ROLE.ENGINEER]: 'Engineer',
+});
+
+/**
+ * Whether a telecaller is currently in the Round Robin rotation.
+ *
+ * Separate from `isActive` on purpose: deactivating an account is an admin
+ * action about LOGIN, while "on leave today" is an everyday scheduling fact
+ * that shouldn't require disabling somebody's ability to sign in and see
+ * their existing leads.
+ */
+export const STAFF_AVAILABILITY = Object.freeze({
+  AVAILABLE: 'AVAILABLE',
+  ON_LEAVE: 'ON_LEAVE',
+  UNAVAILABLE: 'UNAVAILABLE',
+});
+
+export const ACTIVE_STAFF_AVAILABILITY = Object.freeze(Object.values(STAFF_AVAILABILITY));
+
+// ------------------------------------------------------------------- RBAC
+/**
+ * The things permissions are granted ON. One entry per area of the app that
+ * is worth restricting separately — deliberately coarse: a shop with four
+ * roles does not need per-field permissions.
+ */
+export const PERMISSION_MODULE = Object.freeze({
+  DASHBOARD: 'DASHBOARD',
+  REPAIRS: 'REPAIRS',
+  CRM: 'CRM',
+  RATE_CARD: 'RATE_CARD',
+  CUSTOMERS: 'CUSTOMERS',
+  BILLING: 'BILLING',
+  REPORTS: 'REPORTS',
+  STAFF: 'STAFF',
+  USERS: 'USERS',
+  SETTINGS: 'SETTINGS',
+});
+
+export const PERMISSION_ACTION = Object.freeze({
+  VIEW: 'VIEW',
+  CREATE: 'CREATE',
+  EDIT: 'EDIT',
+  DELETE: 'DELETE',
+});
+
+export const PERMISSION_MODULE_LABELS = Object.freeze({
+  [PERMISSION_MODULE.DASHBOARD]: 'Dashboard',
+  [PERMISSION_MODULE.REPAIRS]: 'Repairs',
+  [PERMISSION_MODULE.CRM]: 'CRM / Leads',
+  [PERMISSION_MODULE.RATE_CARD]: 'Rate Card',
+  [PERMISSION_MODULE.CUSTOMERS]: 'Customers',
+  [PERMISSION_MODULE.BILLING]: 'Billing / Cash Memo',
+  [PERMISSION_MODULE.REPORTS]: 'Reports',
+  [PERMISSION_MODULE.STAFF]: 'Technicians, Sales & Suppliers',
+  [PERMISSION_MODULE.USERS]: 'User Management',
+  [PERMISSION_MODULE.SETTINGS]: 'Settings',
+});
+
+/** A permission is the string "MODULE:ACTION", e.g. "RATE_CARD:EDIT". */
+export const permission = (module, action) => `${module}:${action}`;
+
+/** Every permission that exists — the full grid the Super Admin ticks boxes in. */
+export const ALL_PERMISSIONS = Object.freeze(
+  Object.values(PERMISSION_MODULE).flatMap((module) =>
+    Object.values(PERMISSION_ACTION).map((action) => permission(module, action)),
+  ),
+);
+
+const viewOnly = (...modules) => modules.map((module) => permission(module, PERMISSION_ACTION.VIEW));
+
+/**
+ * The DEFAULT permissions each role carries. A user's effective permissions
+ * are these, plus their individual `grant` list, minus their individual
+ * `revoke` list — see resolvePermissions() in permission.helpers.js.
+ *
+ * SUPER_ADMIN is deliberately NOT listed: it is special-cased to hold every
+ * permission unconditionally, so adding a new module later can never
+ * accidentally lock the owner out of it.
+ */
+export const ROLE_PERMISSIONS = Object.freeze({
+  [ADMIN_ROLE.SUPER_ADMIN]: Object.freeze([...ALL_PERMISSIONS]),
+
+  // Works the CRM all day; sees prices but may not change them (the original
+  // reason a role column was added at all). Rate Card EDIT is exactly the
+  // kind of thing granted per-user as an override.
+  //
+  // NOTE the missing CRM:DELETE. Throughout the CRM that permission means
+  // "supervises the whole board" — it unlocks seeing every telecaller's
+  // leads, the distribution dashboard, and manual reassignment. A telecaller
+  // must NOT have it by default, or each of them could reassign the others'
+  // leads and Round Robin would stop meaning anything.
+  [ADMIN_ROLE.TELECALLER]: Object.freeze([
+    permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.VIEW),
+    permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.CREATE),
+    permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.EDIT),
+    ...viewOnly(
+      PERMISSION_MODULE.DASHBOARD,
+      PERMISSION_MODULE.RATE_CARD,
+      PERMISSION_MODULE.REPAIRS,
+      PERMISSION_MODULE.CUSTOMERS,
+      // Needed to populate the technician dropdown on the repair screens.
+      PERMISSION_MODULE.STAFF,
+    ),
+  ]),
+
+  // Runs the ad/social side: needs to see where leads come from and create
+  // leads by hand, but has no business in billing or repairs.
+  [ADMIN_ROLE.MARKETING]: Object.freeze([
+    permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.VIEW),
+    permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.CREATE),
+    ...viewOnly(PERMISSION_MODULE.DASHBOARD, PERMISSION_MODULE.REPORTS, PERMISSION_MODULE.RATE_CARD),
+  ]),
+
+  // Repairs the phones. EDIT on REPAIRS is what allows a status update; there
+  // is deliberately no CREATE (jobs are booked at the counter), no DELETE,
+  // and nothing at all on money, customers or users.
+  [ADMIN_ROLE.ENGINEER]: Object.freeze([
+    permission(PERMISSION_MODULE.REPAIRS, PERMISSION_ACTION.VIEW),
+    permission(PERMISSION_MODULE.REPAIRS, PERMISSION_ACTION.EDIT),
+    // STAFF:VIEW only so the technician dropdown loads. Note there is
+    // deliberately nothing under BILLING: the payment routes that live at
+    // /repairs/:id/payments are gated on BILLING, so REPAIRS:EDIT lets an
+    // engineer update the job but never take or reverse money.
+    ...viewOnly(PERMISSION_MODULE.DASHBOARD, PERMISSION_MODULE.RATE_CARD, PERMISSION_MODULE.STAFF),
+  ]),
+});
+
+// -------------------------------------------------------------------- CRM
+/**
+ * Where an enquiry came from. Stored as a STRING on the lead so a source can
+ * be renamed later without rewriting history — same reasoning as
+ * repair_jobs' snapshotted lead source.
+ */
+export const LEAD_SOURCE = Object.freeze({
+  WHATSAPP: 'WHATSAPP',
+  INSTAGRAM: 'INSTAGRAM',
+  FACEBOOK: 'FACEBOOK',
+  MANUAL: 'MANUAL',
+  OTHER: 'OTHER',
+});
+
+export const ACTIVE_LEAD_SOURCES = Object.freeze(Object.values(LEAD_SOURCE));
+
+export const LEAD_SOURCE_LABELS = Object.freeze({
+  [LEAD_SOURCE.WHATSAPP]: 'WhatsApp',
+  [LEAD_SOURCE.INSTAGRAM]: 'Instagram',
+  [LEAD_SOURCE.FACEBOOK]: 'Facebook',
+  [LEAD_SOURCE.MANUAL]: 'Added by hand',
+  [LEAD_SOURCE.OTHER]: 'Other',
+});
+
+/**
+ * The lead pipeline, in order. Deliberately short — a repair shop's telecaller
+ * needs to know "have I called them, are they coming, did they show up", not
+ * a nine-stage sales funnel.
+ *
+ * CONVERTED is the one that matters: it means the customer actually turned up
+ * and a repair job was booked, and the lead carries the resulting
+ * `repair_job_id` so the CRM and the workshop are genuinely linked rather
+ * than two parallel worlds.
+ */
+export const LEAD_STATUS = Object.freeze({
+  NEW: 'NEW',
+  CONTACTED: 'CONTACTED',
+  FOLLOW_UP: 'FOLLOW_UP',
+  VISIT_EXPECTED: 'VISIT_EXPECTED',
+  CONVERTED: 'CONVERTED',
+  NOT_INTERESTED: 'NOT_INTERESTED',
+  LOST: 'LOST',
+});
+
+export const ACTIVE_LEAD_STATUSES = Object.freeze(Object.values(LEAD_STATUS));
+
+export const LEAD_STATUS_LABELS = Object.freeze({
+  [LEAD_STATUS.NEW]: 'New',
+  [LEAD_STATUS.CONTACTED]: 'Contacted',
+  [LEAD_STATUS.FOLLOW_UP]: 'Follow Up',
+  [LEAD_STATUS.VISIT_EXPECTED]: 'Visit Expected',
+  [LEAD_STATUS.CONVERTED]: 'Converted',
+  [LEAD_STATUS.NOT_INTERESTED]: 'Not Interested',
+  [LEAD_STATUS.LOST]: 'Lost',
+});
+
+/**
+ * Statuses that mean the lead is finished. A repeat enquiry from the same
+ * mobile number is folded into an OPEN lead rather than creating a second
+ * one; if every previous lead is CLOSED, a NEW lead is created — but it still
+ * goes to whoever owned the last one (sticky ownership), never back through
+ * the rotation. See AssignLeadService.
+ */
+export const CLOSED_LEAD_STATUSES = Object.freeze([
+  LEAD_STATUS.CONVERTED,
+  LEAD_STATUS.NOT_INTERESTED,
+  LEAD_STATUS.LOST,
+]);
+
+export const isClosedLeadStatus = (status) => CLOSED_LEAD_STATUSES.includes(status);

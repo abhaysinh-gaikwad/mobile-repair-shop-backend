@@ -66,9 +66,15 @@ module.exports = {
 
     // Idempotent: re-running the seeder must not create a duplicate owner or
     // reset a password the shop has already changed.
+    //
+    // `role` is set EXPLICITLY. The column's default is TELECALLER (the
+    // least-privileged role, so a new account never arrives over-privileged),
+    // which means relying on the default here would seed the shop owner as a
+    // telecaller and lock them out of their own system on a fresh database.
+    // Verified: without this the seeded owner came out as TELECALLER.
     await queryInterface.sequelize.query(
-      `INSERT INTO public.admin_users (name, email, password, is_active, created_at, updated_at)
-       VALUES (:name, :email, :password, true, :now, :now)
+      `INSERT INTO public.admin_users (name, email, password, role, is_active, created_at, updated_at)
+       VALUES (:name, :email, :password, 'SUPER_ADMIN', true, :now, :now)
        ON CONFLICT (email) DO NOTHING;`,
       {
         replacements: {

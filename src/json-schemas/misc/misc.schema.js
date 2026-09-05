@@ -1,5 +1,6 @@
 import { DATE_PRESETS } from '@src/libs/dayjs';
 import {
+  ACTIVE_LEDGER_SOURCES,
   ALL_PAYMENT_METHODS,
   EXPENSE_CATEGORY,
   LEDGER_ENTRY_TYPE,
@@ -131,6 +132,9 @@ export const getCashMemoSchema = {
       limit: { type: 'integer', minimum: 1, maximum: 200, default: 50 },
       paymentMethod: { type: 'string', enum: ALL_PAYMENT_METHODS },
       entryType: { type: 'string', enum: Object.values(LEDGER_ENTRY_TYPE) },
+      // REPAIR_JOB vs MANUAL — lets the owner look at just the hand-entered
+      // and historical rows, or just the receipt-linked ones.
+      source: { type: 'string', enum: ACTIVE_LEDGER_SOURCES },
       search: { type: 'string', maxLength: 120 },
       ...datePresetProps,
     },

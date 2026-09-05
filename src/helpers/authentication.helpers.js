@@ -16,10 +16,14 @@ export const generateLoginToken = (adminUser) =>
       id: adminUser.id,
       email: adminUser.email,
       name: adminUser.name,
-      // Falls back to OWNER for the generic { id, email, name } identity
+      // Falls back to SUPER_ADMIN for the generic { id, email, name } identity
       // receiptPdf.utils.js builds when the real admin lookup fails — that
       // path only ever renders a print page, never a role-gated action.
-      role: adminUser.role ?? ADMIN_ROLE.OWNER,
+      //
+      // Note this is only the token's CLAIM. Every permission check re-reads
+      // the user from the database (see requirePermission), so a forged or
+      // stale role in a token grants nothing on its own.
+      role: adminUser.role ?? ADMIN_ROLE.SUPER_ADMIN,
       tokenType: TOKEN_TYPE.LOGIN,
     },
     config.get('jwt.loginTokenSecret'),

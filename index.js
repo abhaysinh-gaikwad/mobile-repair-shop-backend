@@ -34,8 +34,17 @@ async function start() {
     // Fire-and-forget: launching the WhatsApp Web browser session must never
     // block or crash the HTTP server coming up. Failures are logged inside
     // whatsappWebClient itself.
+    //
     if (config.get('whatsapp.provider') === 'web') {
+      Logger.warn(
+        'WHATSAPP_PROVIDER=web — launching a persistent headless Chrome (~450MB). Confirm this host has the RAM headroom.',
+      );
       initWhatsAppWeb();
+    } else {
+      Logger.info(
+        { provider: config.get('whatsapp.provider') },
+        'WhatsApp Web not started — no browser launched, whatsapp-web.js not loaded',
+      );
     }
   } catch (error) {
     Logger.error({ err: error }, 'failed to start server');

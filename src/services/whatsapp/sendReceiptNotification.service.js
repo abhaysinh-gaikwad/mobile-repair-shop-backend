@@ -14,9 +14,10 @@ import {
   WhatsAppWebNotReadyError,
 } from '@src/integrations/whatsapp/whatsappWebClient';
 import { toWhatsAppNumber } from '@src/integrations/whatsapp/phoneNumber.utils';
+import { generateReceiptPdf } from '@src/utils/receiptPdf.utils';
+import { isWhatsAppDisabled } from '@src/integrations/whatsapp/whatsappProvider';
 import { PAYMENT_TYPE, WHATSAPP_MESSAGE_TYPE, WHATSAPP_STATUS } from '@src/utils/constants/public.constants';
 import { formatRupees, round2 } from '@src/utils/money.utils';
-import { generateReceiptPdf } from '@src/utils/receiptPdf.utils';
 import { Logger } from '@src/libs/logger';
 
 /**
@@ -46,6 +47,12 @@ export default class SendReceiptNotificationService extends BaseHandler {
       transaction,
     });
     if (!repairJob) throw new AppError(Errors.REPAIR_NOT_FOUND);
+
+    // Checked BEFORE the notification row is written: an admin pressing
+    // "Send on WhatsApp" while sending is switched off should get a plain
+    // "it's turned off" message, not a repair history littered with FAILED
+    // attempts that were never actually attempted.
+    if (isWhatsAppDisabled()) throw new AppError(Errors.WHATSAPP_DISABLED);
 
     const customer = repairJob.customer;
     const phoneNumber = toWhatsAppNumber(customer?.mobile);

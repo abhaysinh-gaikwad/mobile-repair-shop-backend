@@ -1,3 +1,7 @@
+import {
+  AddManualLedgerEntryService,
+  ReverseManualEntryService,
+} from '@src/services/billing/manualLedgerEntry.service';
 import { sendResponse } from '@src/helpers/response.helpers';
 import {
   GetCashMemoService,
@@ -109,6 +113,31 @@ export default class BillingController {
   static async getPending(req, res, next) {
     try {
       const data = await GetPendingPaymentsService.execute({ ...req.query }, req.context);
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ---- Manual Cash Memo entries (no repair receipt) ----
+  static async addManualEntry(req, res, next) {
+    try {
+      const data = await AddManualLedgerEntryService.execute(
+        { ...req.body, adminId: req.user.id },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async reverseManualEntry(req, res, next) {
+    try {
+      const data = await ReverseManualEntryService.execute(
+        { entryId: Number(req.params.entryId), ...req.body, adminId: req.user.id },
+        req.context,
+      );
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

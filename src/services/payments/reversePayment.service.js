@@ -1,10 +1,10 @@
 import db from '@src/db/models';
 import { AppError } from '@src/errors/app.error';
 import { Errors } from '@src/errors/errorCodes';
-import { generateLedgerEntryNo, getRepairMoneySummary } from '@src/helpers/repair.helpers';
+import { getRepairMoneySummary } from '@src/helpers/repair.helpers';
 import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
-import { LEDGER_ENTRY_TYPE } from '@src/utils/constants/public.constants';
+import { assertReversible, buildReversalRow } from '@src/services/payments/ledgerReversal.helpers';
 import { round2 } from '@src/utils/money.utils';
 
 /**
@@ -30,19 +30,8 @@ export default class ReversePaymentService extends BaseHandler {
     });
     if (!original) throw new AppError(Errors.LEDGER_ENTRY_NOT_FOUND);
 
-    // Reversing a reversal would let the books be walked back and forth
-    // indefinitely; record a fresh payment instead.
-    if (original.entryType === LEDGER_ENTRY_TYPE.REVERSAL) {
-      throw new AppError(Errors.LEDGER_CANNOT_REVERSE_REVERSAL);
-    }
-
-    // Application-level check; a partial unique index on reverses_entry_id
-    // enforces the same rule in the database.
-    const existingReversal = await db.RepairLedger.findOne({
-      where: { reversesEntryId: original.id },
-      transaction,
-    });
-    if (existingReversal) throw new AppError(Errors.LEDGER_ALREADY_REVERSED);
+    // Shared with the manual Cash Memo reversal — see ledgerReversal.helpers.
+    await assertReversible(original, transaction);
 
     const reversalAmount = round2(-Number(original.amount));
 
@@ -51,28 +40,16 @@ export default class ReversePaymentService extends BaseHandler {
     const jobBalanceAfter = round2(before.totalAmount - jobPaidAfter);
 
     const entry = await db.RepairLedger.create(
-      {
-        entryNo: await generateLedgerEntryNo(transaction),
-        repairJobId,
-        // Snapshots copied from the original so the pair reads consistently
-        // even if the customer record changes later.
-        receiptNumber: original.receiptNumber,
-        customerId: original.customerId,
-        customerName: original.customerName,
-        customerMobile: original.customerMobile,
-        entryType: LEDGER_ENTRY_TYPE.REVERSAL,
-        paymentType: original.paymentType,
-        paymentMethod: original.paymentMethod,
-        amount: reversalAmount,
-        jobTotalAfter: before.totalAmount,
-        jobPaidAfter,
-        jobBalanceAfter,
-        reversesEntryId: original.id,
-        reversalReason: String(reversalReason).trim(),
-        note: `Reversal of ${original.entryNo}`,
-        paidAt: new Date(),
-        receivedBy: adminId ?? null,
-      },
+      await buildReversalRow(
+        {
+          original,
+          reversalReason,
+          adminId,
+          // Only the repair-job path knows the job's running balance.
+          jobAmounts: { jobTotalAfter: before.totalAmount, jobPaidAfter, jobBalanceAfter },
+        },
+        transaction,
+      ),
       { transaction },
     );
 

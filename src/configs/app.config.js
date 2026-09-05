@@ -40,6 +40,12 @@ const config = convict({
       default: 'http://localhost:4200',
       env: 'APP_URL',
     },
+    environmentTag: {
+      doc: "Which of the frontend's two environments THIS backend serves — 'prod' or 'test'. The frontend keeps a separate login session per environment and routes /api through a proxy that picks the backend from an `mrs_env` cookie; the receipt-PDF renderer drives that same frontend with a headless browser, so it has to set that cookie (and the matching session key) to the environment it is itself part of. Without it the Test backend's PDF renderer would load the frontend with no cookie, be proxied to PROD, and render the wrong shop's receipt.",
+      format: ['prod', 'test'],
+      default: 'prod',
+      env: 'MRS_ENV',
+    },
   },
   cors: {
     origin: {
@@ -99,9 +105,9 @@ const config = convict({
   },
   whatsapp: {
     provider: {
-      doc: "Which transport sends WhatsApp messages. 'web' drives a logged-in WhatsApp Web session (no Meta app/business number needed, works from day one). 'cloud_api' uses Meta's official Cloud API (requires WHATSAPP_ACCESS_TOKEN etc, and an approved template). Switch to 'cloud_api' once that is set up — nothing else in the codebase needs to change.",
-      format: ['web', 'cloud_api'],
-      default: 'web',
+      doc: "Which transport sends WhatsApp messages. 'disabled' (the DEFAULT) sends nothing and, critically, never loads whatsapp-web.js/puppeteer or launches a Chrome — the only setting that costs zero RAM. 'web' drives a logged-in WhatsApp Web session via a persistent headless Chrome (~450MB resident: it exhausted the t2.micro and hung the box, which is why it is no longer the default — do not re-enable it without confirming the host has the headroom). 'cloud_api' uses Meta's official Cloud API (requires WHATSAPP_ACCESS_TOKEN etc, and an approved template) and needs no browser at all — this is the intended destination.",
+      format: ['disabled', 'web', 'cloud_api'],
+      default: 'disabled',
       env: 'WHATSAPP_PROVIDER',
     },
     accessToken: {

@@ -104,3 +104,46 @@ export const lookupReceiptSchema = {
     required: ['receiptNumber'],
   },
 };
+
+
+/**
+ * A manual Cash Memo entry. Only the amount and a description are required —
+ * an old paper record often has nothing else, and demanding a customer name
+ * or receipt number would make exactly the entries this feature exists for
+ * impossible to enter.
+ */
+export const addManualLedgerEntrySchema = {
+  body: {
+    type: 'object',
+    properties: {
+      amount: { type: 'number', exclusiveMinimum: 0 },
+      description: { type: 'string', minLength: 1, maxLength: 500 },
+      paymentMethod: { type: 'string', enum: ACTIVE_PAYMENT_METHODS },
+      // Backdating is the point for historical records.
+      paidAt: { type: 'string' },
+      customerName: { type: 'string', maxLength: 120 },
+      customerMobile: { type: 'string', maxLength: 20 },
+      // The shop's own paper bill number, if the old record has one.
+      reference: { type: 'string', maxLength: 60 },
+      note: { type: 'string', maxLength: 500 },
+    },
+    required: ['amount', 'description'],
+    additionalProperties: false,
+  },
+};
+
+export const reverseManualEntrySchema = {
+  params: {
+    type: 'object',
+    properties: { entryId: { type: 'integer', minimum: 1 } },
+    required: ['entryId'],
+  },
+  body: {
+    type: 'object',
+    // A reason is mandatory, exactly as it is for a repair-job reversal — an
+    // unexplained correction to money is not something this ledger allows.
+    properties: { reversalReason: { type: 'string', minLength: 3, maxLength: 500 } },
+    required: ['reversalReason'],
+    additionalProperties: false,
+  },
+};
