@@ -291,6 +291,20 @@ export const Errors = Object.freeze({
     code: 7004,
     httpStatusCode: StatusCodes.BAD_REQUEST,
   },
+  UNCONFIRMED_PAYMENT_NOT_FOUND: {
+    name: 'UnconfirmedPaymentNotFound',
+    message: 'Unconfirmed payment not found',
+    explanation: 'No pending payment entry exists with the supplied id.',
+    code: 7005,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  UNCONFIRMED_PAYMENT_ALREADY_RESOLVED: {
+    name: 'UnconfirmedPaymentAlreadyResolved',
+    message: 'This payment has already been confirmed or rejected',
+    explanation: 'It can only be resolved once — check the Cash Memo for the entry it produced.',
+    code: 7006,
+    httpStatusCode: StatusCodes.CONFLICT,
+  },
 
   // ---- WhatsApp (76xx) ----
   WHATSAPP_NOT_CONFIGURED: {

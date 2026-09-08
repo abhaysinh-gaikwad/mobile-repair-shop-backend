@@ -18,6 +18,11 @@ import {
 } from '@src/services/billing/cashDay.service';
 import AddPaymentByReceiptService from '@src/services/payments/addPaymentByReceipt.service';
 import LookupReceiptService from '@src/services/payments/lookupReceipt.service';
+import {
+  ConfirmUnconfirmedPaymentService,
+  GetUnconfirmedPaymentsService,
+  RejectUnconfirmedPaymentService,
+} from '@src/services/payments/unconfirmedPayment.service';
 
 export default class BillingController {
   // ------------------------------------------------------------ cash day
@@ -113,6 +118,40 @@ export default class BillingController {
   static async getPending(req, res, next) {
     try {
       const data = await GetPendingPaymentsService.execute({ ...req.query }, req.context);
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // ---- "Payment Received" left unticked — awaiting confirmation ----
+  static async getUnconfirmedPayments(req, res, next) {
+    try {
+      const data = await GetUnconfirmedPaymentsService.execute({ ...req.query }, req.context);
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async confirmUnconfirmedPayment(req, res, next) {
+    try {
+      const data = await ConfirmUnconfirmedPaymentService.execute(
+        { id: Number(req.params.id), adminId: req.user.id },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  static async rejectUnconfirmedPayment(req, res, next) {
+    try {
+      const data = await RejectUnconfirmedPaymentService.execute(
+        { id: Number(req.params.id), ...req.body, adminId: req.user.id },
+        req.context,
+      );
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

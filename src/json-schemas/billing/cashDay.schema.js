@@ -3,6 +3,7 @@ import {
   ACTIVE_PAYMENT_METHODS,
   EXPENSE_CATEGORY,
   PAYMENT_TYPE,
+  UNCONFIRMED_PAYMENT_STATUS,
 } from '@src/utils/constants/public.constants';
 
 const dateQuery = {
@@ -80,7 +81,13 @@ export const shopExpenseIdSchema = {
   },
 };
 
-/** Customer payment taken at the counter, identified by receipt number. */
+/**
+ * Customer payment taken at the counter, identified by receipt number.
+ *
+ * `confirmed` is the "Payment Received" checkbox — left unset it still means
+ * true, matching how this endpoint behaved before the checkbox existed. See
+ * addPaymentByReceipt.service.js for how the two branches differ.
+ */
 export const addPaymentByReceiptSchema = {
   body: {
     type: 'object',
@@ -91,6 +98,7 @@ export const addPaymentByReceiptSchema = {
       paymentMethod: { type: 'string', enum: ACTIVE_PAYMENT_METHODS },
       note: { type: 'string', maxLength: 500, nullable: true },
       paidAt: { type: 'string', nullable: true },
+      confirmed: { type: 'boolean' },
     },
     required: ['receiptNumber', 'amount'],
     additionalProperties: false,
@@ -102,6 +110,39 @@ export const lookupReceiptSchema = {
     type: 'object',
     properties: { receiptNumber: { type: 'string', minLength: 1, maxLength: 20 } },
     required: ['receiptNumber'],
+  },
+};
+
+// -------------------------------------------------------- unconfirmed payments
+export const getUnconfirmedPaymentsSchema = {
+  query: {
+    type: 'object',
+    properties: {
+      status: { type: 'string', enum: Object.values(UNCONFIRMED_PAYMENT_STATUS) },
+      repairJobId: { type: 'integer', minimum: 1 },
+      page: { type: 'integer', minimum: 1, default: 1 },
+      limit: { type: 'integer', minimum: 1, maximum: 100, default: 50 },
+    },
+    additionalProperties: false,
+  },
+};
+
+export const unconfirmedPaymentIdParams = {
+  type: 'object',
+  properties: { id: { type: 'integer', minimum: 1 } },
+  required: ['id'],
+};
+
+export const confirmUnconfirmedPaymentSchema = {
+  params: unconfirmedPaymentIdParams,
+};
+
+export const rejectUnconfirmedPaymentSchema = {
+  params: unconfirmedPaymentIdParams,
+  body: {
+    type: 'object',
+    properties: { reason: { type: 'string', maxLength: 500, nullable: true } },
+    additionalProperties: false,
   },
 };
 

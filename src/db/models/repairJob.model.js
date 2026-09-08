@@ -161,6 +161,7 @@ module.exports = function (sequelize, DataTypes) {
 
     RepairJob.hasMany(models.RepairPart, { foreignKey: 'repairJobId', as: 'parts' });
     RepairJob.hasMany(models.RepairLedger, { foreignKey: 'repairJobId', as: 'ledgerEntries' });
+    RepairJob.hasMany(models.UnconfirmedPayment, { foreignKey: 'repairJobId', as: 'unconfirmedPayments' });
     RepairJob.hasMany(models.RepairCallLog, { foreignKey: 'repairJobId', as: 'callLogs' });
     RepairJob.hasMany(models.RepairEstimate, { foreignKey: 'repairJobId', as: 'estimates' });
     RepairJob.hasMany(models.RepairStatusHistory, { foreignKey: 'repairJobId', as: 'statusHistory' });

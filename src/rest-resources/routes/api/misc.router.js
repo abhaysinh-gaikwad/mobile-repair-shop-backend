@@ -29,9 +29,12 @@ import {
   addPaymentByReceiptSchema,
   addShopExpenseSchema,
   closeCashDaySchema,
+  confirmUnconfirmedPaymentSchema,
   getCashDaySchema,
+  getUnconfirmedPaymentsSchema,
   lookupReceiptSchema,
   openCashDaySchema,
+  rejectUnconfirmedPaymentSchema,
   reopenCashDaySchema,
   reverseManualEntrySchema,
   shopExpenseIdSchema,
@@ -111,6 +114,23 @@ billingRouter.delete('/expenses/:id', ...write(P('BILLING', 'DELETE'), shopExpen
 // ---- Money IN: customer payment, looked up by the receipt number ----
 billingRouter.get('/receipt/:receiptNumber', ...read(P('BILLING', 'VIEW'), lookupReceiptSchema, BillingController.lookupReceipt));
 billingRouter.post('/payments', ...write(P('BILLING', 'CREATE'), addPaymentByReceiptSchema, BillingController.addPaymentByReceipt));
+
+// ---- "Payment Received" left UNTICKED — never touches the ledger until
+// someone explicitly confirms it. Confirming CREATES a real payment (same
+// permission as /payments); rejecting is a correction, not new money, so it
+// sits on EDIT like cash-day/reopen does.
+billingRouter.get(
+  '/unconfirmed-payments',
+  ...read(P('BILLING', 'VIEW'), getUnconfirmedPaymentsSchema, BillingController.getUnconfirmedPayments),
+);
+billingRouter.post(
+  '/unconfirmed-payments/:id/confirm',
+  ...write(P('BILLING', 'CREATE'), confirmUnconfirmedPaymentSchema, BillingController.confirmUnconfirmedPayment),
+);
+billingRouter.post(
+  '/unconfirmed-payments/:id/reject',
+  ...write(P('BILLING', 'EDIT'), rejectUnconfirmedPaymentSchema, BillingController.rejectUnconfirmedPayment),
+);
 
 // ---- Money IN with NO repair receipt: ad-hoc payments and old paper records.
 // Same ledger table, same append-only rules — only the `source` differs. A

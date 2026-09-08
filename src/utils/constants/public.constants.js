@@ -79,6 +79,24 @@ export const LEDGER_SOURCE = Object.freeze({
 export const ACTIVE_LEDGER_SOURCES = Object.freeze(Object.values(LEDGER_SOURCE));
 
 /**
+ * Lifecycle of a payment entered with "Payment Received" left UNTICKED.
+ *
+ * PENDING rows live only in `unconfirmed_payments` — never in
+ * `repair_ledger` — so they cannot affect a job's balance or any Cash Memo
+ * total until a person explicitly resolves them. CONFIRMED means a real
+ * ledger row was created for it (see `confirmedLedgerEntryId`); REJECTED
+ * means staff decided the money was never actually received and no ledger
+ * row will ever be created for it.
+ */
+export const UNCONFIRMED_PAYMENT_STATUS = Object.freeze({
+  PENDING: 'PENDING',
+  CONFIRMED: 'CONFIRMED',
+  REJECTED: 'REJECTED',
+});
+
+export const ACTIVE_UNCONFIRMED_PAYMENT_STATUSES = Object.freeze(Object.values(UNCONFIRMED_PAYMENT_STATUS));
+
+/**
  * How a customer paid. Only Cash and Online are offered going forward.
  *
  * Legacy values (PHONEPE / GOOGLE_PAY / UPI / CARD / BANK_TRANSFER / OTHER)
