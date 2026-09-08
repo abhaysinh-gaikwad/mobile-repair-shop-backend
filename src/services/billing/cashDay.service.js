@@ -15,7 +15,6 @@ import {
   EXPENSE_CATEGORY,
   EXPENSE_PAYMENT_METHOD,
   PAYMENT_METHOD,
-  UNCONFIRMED_PAYMENT_STATUS,
 } from '@src/utils/constants/public.constants';
 import { round2, subtractAmounts } from '@src/utils/money.utils';
 
@@ -93,7 +92,7 @@ export class GetCashDayService extends BaseHandler {
 
     const cashDay = await db.CashDay.findOne({ where: { businessDate } });
 
-    const [payments, expenses, pendingPayments] = await Promise.all([
+    const [payments, expenses] = await Promise.all([
       db.RepairLedger.findAll({
         where: { paidAt: { [Op.between]: [start, end] } },
         include: [{ model: db.AdminUser, as: 'receiver', attributes: ['id', 'name'] }],
@@ -107,15 +106,6 @@ export class GetCashDayService extends BaseHandler {
         ],
         order: [['spentAt', 'ASC']],
       }),
-      // "Payment Received" left unticked for THIS day — see
-      // unconfirmedPayment.service.js. These are deliberately excluded from
-      // `payments`/`totalCollections` above (that is the whole point of the
-      // table they're kept in), but the "By payment method" breakdown still
-      // needs to know they exist, so it can show what's confirmed vs still
-      // pending per method rather than silently going quiet about them.
-      db.UnconfirmedPayment.findAll({
-        where: { paidAt: { [Op.between]: [start, end] }, status: UNCONFIRMED_PAYMENT_STATUS.PENDING },
-      }),
     ]);
 
     // Which payments have been reversed, so the UI can strike them through.
@@ -125,7 +115,6 @@ export class GetCashDayService extends BaseHandler {
 
     const collectionsByMethod = emptyMethodTotals();
     const expensesByMethod = emptyExpenseMethodTotals();
-    const pendingByMethod = emptyMethodTotals();
 
     // Reversals are negative rows, so a plain sum nets them out automatically.
     let totalCollections = 0;
@@ -134,14 +123,6 @@ export class GetCashDayService extends BaseHandler {
       totalCollections = round2(totalCollections + amount);
       const key = ALL_PAYMENT_METHODS.includes(entry.paymentMethod) ? entry.paymentMethod : 'OTHER';
       collectionsByMethod[key] = round2((collectionsByMethod[key] ?? 0) + amount);
-    }
-
-    let totalPending = 0;
-    for (const entry of pendingPayments) {
-      const amount = round2(entry.amount);
-      totalPending = round2(totalPending + amount);
-      const key = ALL_PAYMENT_METHODS.includes(entry.paymentMethod) ? entry.paymentMethod : 'OTHER';
-      pendingByMethod[key] = round2((pendingByMethod[key] ?? 0) + amount);
     }
 
     // CREDIT expenses are money OWED to a supplier, not money that left the
@@ -182,14 +163,8 @@ export class GetCashDayService extends BaseHandler {
         expectedCashInDrawer,
         collectionsByMethod,
         expensesByMethod,
-        // Money entered with "Payment Received" left unticked — not part of
-        // totalCollections above, shown alongside it so the table can say
-        // "this much is confirmed, this much is still pending" per method.
-        pendingByMethod,
-        totalPending,
         paymentCount: payments.length,
         expenseCount: expenses.length,
-        pendingCount: pendingPayments.length,
       },
       payments: payments.map((entry) => {
         const plain = entry.toJSON();
