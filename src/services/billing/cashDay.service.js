@@ -15,6 +15,7 @@ import {
   EXPENSE_CATEGORY,
   EXPENSE_PAYMENT_METHOD,
   PAYMENT_METHOD,
+  UNCONFIRMED_PAYMENT_STATUS,
 } from '@src/utils/constants/public.constants';
 import { round2, subtractAmounts } from '@src/utils/money.utils';
 
@@ -92,7 +93,7 @@ export class GetCashDayService extends BaseHandler {
 
     const cashDay = await db.CashDay.findOne({ where: { businessDate } });
 
-    const [payments, expenses] = await Promise.all([
+    const [payments, expenses, pendingPayments] = await Promise.all([
       db.RepairLedger.findAll({
         where: { paidAt: { [Op.between]: [start, end] } },
         include: [{ model: db.AdminUser, as: 'receiver', attributes: ['id', 'name'] }],
@@ -105,6 +106,18 @@ export class GetCashDayService extends BaseHandler {
           { model: db.Supplier, as: 'supplier', attributes: ['id', 'name'] },
         ],
         order: [['spentAt', 'ASC']],
+      }),
+      // "Payment Received" left unticked for THIS day. Returned as its own
+      // list, deliberately shaped like `payments`, so the Customer Payments
+      // table can show a pending entry inline right where it happened rather
+      // than only in the separate "Payments Awaiting Confirmation" panel
+      // (which stays cross-date, on purpose — this list is day-scoped, same
+      // as `payments` above, so an old forgotten one from a different day
+      // still needs that panel to be seen).
+      db.UnconfirmedPayment.findAll({
+        where: { paidAt: { [Op.between]: [start, end] }, status: UNCONFIRMED_PAYMENT_STATUS.PENDING },
+        include: [{ model: db.AdminUser, as: 'creator', attributes: ['id', 'name'] }],
+        order: [['paidAt', 'ASC']],
       }),
     ]);
 
@@ -165,6 +178,7 @@ export class GetCashDayService extends BaseHandler {
         expensesByMethod,
         paymentCount: payments.length,
         expenseCount: expenses.length,
+        pendingCount: pendingPayments.length,
       },
       payments: payments.map((entry) => {
         const plain = entry.toJSON();
@@ -175,6 +189,11 @@ export class GetCashDayService extends BaseHandler {
         };
       }),
       expenses: expenses.map((expense) => ({ ...expense.toJSON(), amount: round2(expense.amount) })),
+      // "Payment Received" left unticked — no entryNo yet (that's assigned
+      // only when a real repair_ledger row is created, at confirm time), so
+      // the frontend tells these apart from `payments` by the presence of
+      // this array rather than a per-row flag.
+      pendingPayments: pendingPayments.map((entry) => ({ ...entry.toJSON(), amount: round2(entry.amount) })),
     };
   }
 }
