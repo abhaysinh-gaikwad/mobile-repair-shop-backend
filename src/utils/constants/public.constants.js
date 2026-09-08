@@ -184,6 +184,23 @@ export const DEFAULT_LEAD_SOURCES = Object.freeze([
   'Other',
 ]);
 
+/**
+ * `lead_sources` names that mean the customer walked in directly, with no
+ * sales/lead person involved — a repair booked under one of these must not
+ * REQUIRE `leadHandlerId` (see createRepair.schema.js).
+ *
+ * Two spellings, found by checking the shop's actual data rather than
+ * assumed: "Walk-in" is the seeded name above but is currently DEACTIVATED
+ * in `lead_sources` (see the 20260816161000 seeder); "Walking" is what it was
+ * renamed to and is the one that actually appears in the dropdown today.
+ * Both are matched (case-insensitively — see `isWalkInLeadSource`) so this
+ * keeps working whichever spelling is active.
+ */
+export const WALK_IN_LEAD_SOURCE_NAMES = Object.freeze(['walk-in', 'walking']);
+
+export const isWalkInLeadSource = (leadSource) =>
+  WALK_IN_LEAD_SOURCE_NAMES.includes(String(leadSource ?? '').trim().toLowerCase());
+
 /** Shop settings keys. Values live in the `shop_settings` table. */
 export const SETTING_KEYS = Object.freeze({
   SHOP_NAME: 'shop_name',

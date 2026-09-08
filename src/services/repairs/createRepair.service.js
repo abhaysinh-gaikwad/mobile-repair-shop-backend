@@ -6,6 +6,7 @@ import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
 import {
   DEVICE_UNLOCK_TYPE,
+  isWalkInLeadSource,
   LEDGER_ENTRY_TYPE,
   PAYMENT_METHOD,
   PAYMENT_TYPE,
@@ -56,6 +57,16 @@ export default class CreateRepairService extends BaseHandler {
 
     const transaction = this.dbTransaction;
     const mobile = String(customerMobile).trim();
+
+    // A Walk-in customer wasn't brought in by anyone, so leadHandlerId is
+    // optional for them — required for every other source. Enforced HERE
+    // rather than in the JSON schema because the comparison must be
+    // case-insensitive against whatever spelling the shop currently has
+    // active in `lead_sources` (see isWalkInLeadSource — the shop has
+    // renamed this source before, from "Walk-in" to "Walking").
+    if (!leadHandlerId && !isWalkInLeadSource(leadSource)) {
+      throw new AppError(Errors.LEAD_HANDLER_REQUIRED);
+    }
 
     // Repeat repair: the customer has brought a previously delivered phone
     // back. This creates a COMPLETELY NEW job with its own receipt number —

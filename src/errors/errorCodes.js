@@ -244,6 +244,14 @@ export const Errors = Object.freeze({
     code: 5005,
     httpStatusCode: StatusCodes.CONFLICT,
   }),
+  LEAD_HANDLER_REQUIRED: {
+    name: 'LeadHandlerRequired',
+    message: 'Sales / Lead person is required',
+    explanation:
+      'Every repair must be attributed to a sales/lead person, unless the Lead Source is Walk-in — a Walk-in customer wasn\'t brought in by anyone.',
+    code: 5006,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
+  },
 
   // ---- Parts (6xxx) ----
   PART_NOT_FOUND: {

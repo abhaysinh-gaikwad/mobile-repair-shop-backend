@@ -10,12 +10,16 @@ const createRepairSchema = {
       alternateMobile: { type: 'string', maxLength: 20, nullable: true },
       address: { type: 'string', maxLength: 500, nullable: true },
 
-      // Lead attribution — leadSource and leadHandlerId are both mandatory
-      // (see `required` below): the shop needs every repair attributed to a
-      // marketing source AND a sales/lead person, not just the ones staff
-      // remembered to fill in.
+      // Lead attribution. leadSource is always mandatory (see `required`
+      // below): the shop needs every repair attributed to a marketing
+      // source. leadHandlerId is mandatory too, UNLESS leadSource is a
+      // Walk-in — a customer who walked in wasn't brought in by anyone, so
+      // there is no one to attribute the lead to. That "unless" can't be
+      // expressed cleanly here (it needs a case-insensitive comparison —
+      // see isWalkInLeadSource), so it is enforced in the service instead;
+      // this schema only checks the TYPE when the field is present.
       leadSource: { type: 'string', minLength: 1, maxLength: 60 },
-      leadHandlerId: { type: 'integer', minimum: 1 },
+      leadHandlerId: { type: 'integer', minimum: 1, nullable: true },
       leadAt: { type: 'string', format: 'date-time', nullable: true },
 
       // Device
@@ -73,7 +77,7 @@ const createRepairSchema = {
       labourCharge: { type: 'number', minimum: 0 },
       notes: { type: 'string', maxLength: 2000, nullable: true },
     },
-    required: ['customerName', 'customerMobile', 'brand', 'modelNumber', 'customerComplaint', 'leadSource', 'leadHandlerId'],
+    required: ['customerName', 'customerMobile', 'brand', 'modelNumber', 'customerComplaint', 'leadSource'],
     additionalProperties: false,
   },
 };
