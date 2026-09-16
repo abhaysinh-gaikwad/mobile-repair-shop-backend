@@ -86,6 +86,24 @@ export default class GetRepairsService extends BaseHandler {
 
     const paidByJob = new Map(paidRows.map((row) => [Number(row.repairJobId), round2(row.paid)]));
 
+    // Every quote given for these jobs, numeric or text-only — one grouped
+    // query, not N+1, and not the estimatedCost total: a text-only row
+    // ("screen replacement, price TBD") is a real quotation with no figure,
+    // and must still be listed, not silently dropped for lacking an amount.
+    const estimateRows = jobIds.length
+      ? await db.RepairEstimate.findAll({
+          where: { repairJobId: { [Op.in]: jobIds } },
+          order: [['createdAt', 'ASC']],
+          raw: true,
+        })
+      : [];
+    const estimatesByJob = new Map();
+    for (const row of estimateRows) {
+      const list = estimatesByJob.get(row.repairJobId) ?? [];
+      list.push({ id: row.id, amount: round2(row.amount), note: row.note, createdAt: row.createdAt });
+      estimatesByJob.set(row.repairJobId, list);
+    }
+
     let repairJobs = rows.map((row) => {
       const plain = row.toJSON();
       const totalAmount = round2(plain.totalAmount);
@@ -116,6 +134,10 @@ export default class GetRepairsService extends BaseHandler {
         // estimate rows. Null (not 0) when nothing was quoted yet, same
         // meaning as everywhere else this column is read.
         estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),
+        // Every individual quote for this job, numeric or text — see the
+        // note above. Never combined into one total here; each stays its
+        // own row, same as the repair's own Estimated Costs section.
+        estimates: estimatesByJob.get(plain.id) ?? [],
         totalAmount,
         totalPaid,
         balance: subtractAmounts(totalAmount, totalPaid),

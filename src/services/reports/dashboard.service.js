@@ -61,6 +61,22 @@ export default class GetDashboardSummaryService extends BaseHandler {
 
     const countFor = (status) => Number(statusRows.find((row) => row.status === status)?.count ?? 0);
 
+    // Repairs in this period with NO quotation at all yet — a job counts as
+    // "quoted" the moment it has even one repair_estimates row, numeric or
+    // text-only, same rule as everywhere else quotations are read. Two small
+    // queries rather than one job fetched per row, and never double-counts
+    // a job that already has a quote.
+    const jobsInPeriod = await db.RepairJob.findAll({ attributes: ['id'], where: jobWhere, raw: true });
+    const jobIdsInPeriod = jobsInPeriod.map((job) => job.id);
+    const quotedJobIds = jobIdsInPeriod.length
+      ? await db.RepairEstimate.findAll({
+          attributes: [[db.sequelize.fn('DISTINCT', db.sequelize.col('repair_job_id')), 'repairJobId']],
+          where: { repairJobId: { [Op.in]: jobIdsInPeriod } },
+          raw: true,
+        })
+      : [];
+    const pendingQuotation = jobIdsInPeriod.length - quotedJobIds.length;
+
     // Outstanding money — scoped to the SAME job set as everything else on
     // the page (repairs received in the selected period), not every open
     // job regardless of when it came in.
@@ -99,6 +115,22 @@ export default class GetDashboardSummaryService extends BaseHandler {
       : [];
     const recentPaidByJob = new Map(recentPaidRows.map((row) => [Number(row.repairJobId), round2(row.paid)]));
 
+    // Every individual quote for the recent jobs — numeric or text-only, one
+    // grouped query, never combined into a single total here.
+    const recentEstimateRows = recentIds.length
+      ? await db.RepairEstimate.findAll({
+          where: { repairJobId: { [Op.in]: recentIds } },
+          order: [['createdAt', 'ASC']],
+          raw: true,
+        })
+      : [];
+    const estimatesByJob = new Map();
+    for (const row of recentEstimateRows) {
+      const list = estimatesByJob.get(row.repairJobId) ?? [];
+      list.push({ id: row.id, amount: round2(row.amount), note: row.note, createdAt: row.createdAt });
+      estimatesByJob.set(row.repairJobId, list);
+    }
+
     // "Still on the pipeline" — everything between intake and job-done.
     const inRepairCount =
       countFor(REPAIR_STATUS.QUOTATION_GIVEN) +
@@ -125,6 +157,7 @@ export default class GetDashboardSummaryService extends BaseHandler {
         // by default, exactly as it always meant before this filter existed.
         todayCollection: round2(periodCollection || 0),
         pendingPayments: pendingAmount,
+        pendingQuotation,
       },
       statusBreakdown: Object.values(REPAIR_STATUS).reduce((acc, status) => {
         acc[status] = countFor(status);
@@ -148,6 +181,7 @@ export default class GetDashboardSummaryService extends BaseHandler {
           // itemised quotation on the repair's own page, not shown as a
           // bare total here.
           estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),
+          estimates: estimatesByJob.get(plain.id) ?? [],
           totalAmount,
           totalPaid,
           balance: subtractAmounts(totalAmount, totalPaid),
