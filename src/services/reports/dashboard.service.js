@@ -33,7 +33,7 @@ export default class GetDashboardSummaryService extends BaseHandler {
     const jobWhere = {};
     applyDateRangeFilter(jobWhere, 'receivedAt', start, end);
 
-    const collectionWhere = { isConfirmed: true };
+    const collectionWhere = {};
     applyDateRangeFilter(collectionWhere, 'paidAt', start, end);
 
     const [statusRows, periodCollection, totalRepairs, recentJobs] = await Promise.all([
@@ -89,7 +89,7 @@ export default class GetDashboardSummaryService extends BaseHandler {
     const paidRows = openIds.length
       ? await db.RepairLedger.findAll({
           attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-          where: { repairJobId: { [Op.in]: openIds }, isConfirmed: true },
+          where: { repairJobId: { [Op.in]: openIds } },
           group: ['repair_job_id'],
           raw: true,
         })
@@ -108,7 +108,7 @@ export default class GetDashboardSummaryService extends BaseHandler {
     const recentPaidRows = recentIds.length
       ? await db.RepairLedger.findAll({
           attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-          where: { repairJobId: { [Op.in]: recentIds }, isConfirmed: true },
+          where: { repairJobId: { [Op.in]: recentIds } },
           group: ['repair_job_id'],
           raw: true,
         })

@@ -9,15 +9,17 @@ import { CASH_DAY_STATUS } from '@src/utils/constants/public.constants';
 /**
  * The confirmation checkbox for a Customer Payment — see
  * repairLedger.model.js for the invariant this upholds. A straight toggle on
- * the ONE existing row: no new ledger entry, no reversal, no popup. Ticking
- * moves the amount into every confirmed total (a job's balance, the Cash
- * Drawer, reports); unticking takes it back out. Either can be done as many
- * times as needed.
+ * the ONE existing row: no new ledger entry, no reversal, no popup, and no
+ * effect on any total. This is a manual tracking checkbox ONLY — the shop's
+ * own record of "I've personally checked this one" — a recorded payment
+ * counts in a job's balance, the Cash Drawer and every report from the
+ * moment it's recorded, regardless of this flag, and stays counted no
+ * matter how many times it's toggled.
  *
- * Blocked once the day is closed — same reasoning as every other correction
- * in the Cash Memo: a closed day's totals are frozen, and re-opening it is
- * the deliberate, visible step that says "this figure the owner already
- * checked is about to change."
+ * Blocked once the day is closed — same reasoning as every other edit in
+ * the Cash Memo: a closed day is frozen, and re-opening it is the
+ * deliberate, visible step that says "something about this day is about to
+ * change."
  */
 export default class ToggleLedgerConfirmationService extends BaseHandler {
   async run() {

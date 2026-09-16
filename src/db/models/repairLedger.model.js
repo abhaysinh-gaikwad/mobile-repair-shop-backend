@@ -19,18 +19,15 @@ const {
  *     carrying a NEGATIVE amount, a link to the original, and a mandatory
  *     reason — never by changing the original row
  *
- * `isConfirmed` is the ONE deliberate, narrow exception — a plain toggle, at
- * the shop's explicit request: staff sometimes enter a payment that was
- * never actually received, or need to un-tick one entered by mistake, as
- * many times as it takes to get right. Every SUM that means "money actually
- * in hand" (a job's balance, the Cash Drawer, daily/collection reports) must
- * filter `isConfirmed: true` — see getRepairMoneySummary() and the Cash Memo
- * services for the full list. New rows default to `true`: the checkbox
- * exists to correct a mistake after the fact, not to make staff stop and
- * decide at entry time.
+ * `isConfirmed` is a plain toggle column, at the shop's explicit request —
+ * but it is a MANUAL TRACKING CHECKBOX ONLY ("I've personally checked this
+ * one"), not a financial filter. It plays NO part in any total: a job's
+ * balance, the Cash Drawer, and every report count a row from the moment
+ * it's recorded, ticked or not, and stay counted no matter how many times
+ * the checkbox is toggled. New rows default to `true`.
  *
- * Because reversals are negative, `SUM(amount)` (among CONFIRMED rows) is
- * always the correct answer for a job, a day, or all time.
+ * Because reversals are negative, `SUM(amount)` is always the correct
+ * answer for a job, a day, or all time.
  *
  * The customer/receipt columns are SNAPSHOTS taken at the moment money changed
  * hands: correcting a customer's name next month must not silently rewrite

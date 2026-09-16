@@ -64,11 +64,10 @@ module.exports = function (sequelize, DataTypes) {
       createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
 
       /**
-       * Confirmation checkbox, same meaning and same rules as
-       * repair_ledger.isConfirmed: TRUE counts in every expense total,
-       * FALSE does not. Toggleable freely — a mistaken entry gets unticked,
-       * not deleted. Defaults TRUE so every existing/normally-recorded
-       * expense keeps counting exactly as it always has.
+       * Manual tracking checkbox, same meaning as repair_ledger.isConfirmed:
+       * "I've personally checked this one." Toggleable freely and plays no
+       * part in any expense total either way — an expense counts from the
+       * moment it's recorded, ticked or not.
        */
       isConfirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_confirmed' },
     },

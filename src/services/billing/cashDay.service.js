@@ -84,12 +84,11 @@ export class OpenCashDayService extends BaseHandler {
  * shop expenses, per-method totals, closing balance and the full transaction
  * list. This is what the Cash Memo screen renders.
  *
- * `payments` and `expenses` list EVERY entry for the day regardless of its
- * `isConfirmed` state — that flag is what drives the checkbox on each row —
- * but every SUMMARY TOTAL below (collectionsByMethod, totalCollections,
- * expensesByMethod, totalExpenses, totalCredit, the cash-drawer figures)
- * counts CONFIRMED entries only. An unticked "Payment Received" (or a
- * mistaken expense someone has since unticked) must not move any of them.
+ * `isConfirmed` on each row is a plain manual tracking checkbox — the shop's
+ * own record of "I've personally checked this one" — and nothing more. It
+ * does NOT gate any total below: a recorded payment or expense counts from
+ * the moment it's recorded, ticked or not, and stays counted no matter how
+ * many times the checkbox is toggled.
  */
 export class GetCashDayService extends BaseHandler {
   async run() {
@@ -123,16 +122,10 @@ export class GetCashDayService extends BaseHandler {
     const collectionsByMethod = emptyMethodTotals();
     const expensesByMethod = emptyExpenseMethodTotals();
 
-    // Reversals are negative rows, so a plain sum nets them out automatically
-    // WITHIN the confirmed set.
+    // Reversals are negative rows, so a plain sum nets them out automatically.
     let totalCollections = 0;
-    let unconfirmedCollections = 0;
     for (const entry of payments) {
       const amount = round2(entry.amount);
-      if (!entry.isConfirmed) {
-        unconfirmedCollections = round2(unconfirmedCollections + amount);
-        continue;
-      }
       totalCollections = round2(totalCollections + amount);
       const key = ALL_PAYMENT_METHODS.includes(entry.paymentMethod) ? entry.paymentMethod : 'OTHER';
       collectionsByMethod[key] = round2((collectionsByMethod[key] ?? 0) + amount);
@@ -143,13 +136,8 @@ export class GetCashDayService extends BaseHandler {
     // overstated by a purchase nobody has paid for yet.
     let totalExpenses = 0;
     let totalCredit = 0;
-    let unconfirmedExpenses = 0;
     for (const expense of expenses) {
       const amount = round2(expense.amount);
-      if (!expense.isConfirmed) {
-        unconfirmedExpenses = round2(unconfirmedExpenses + amount);
-        continue;
-      }
       const key = ALL_EXPENSE_PAYMENT_METHODS.includes(expense.paymentMethod) ? expense.paymentMethod : 'OTHER';
       expensesByMethod[key] = round2((expensesByMethod[key] ?? 0) + amount);
       if (expense.paymentMethod === EXPENSE_PAYMENT_METHOD.CREDIT) totalCredit = round2(totalCredit + amount);
@@ -183,13 +171,9 @@ export class GetCashDayService extends BaseHandler {
         expensesByMethod,
         paymentCount: payments.length,
         expenseCount: expenses.length,
-        // Unticked-checkbox money, left OUT of every total above, shown so
-        // the day's summary can name it rather than let it go quietly missing.
-        unconfirmedCollections,
-        unconfirmedExpenses,
       },
-      // Every entry for the day, confirmed or not — `isConfirmed` on each
-      // row is what the checkbox in the UI reads and toggles.
+      // Every entry for the day. `isConfirmed` on each row is a manual
+      // tracking checkbox only — it plays no part in any total above.
       payments: payments.map((entry) => {
         const plain = entry.toJSON();
         return {
@@ -309,11 +293,13 @@ export class DeleteShopExpenseService extends BaseHandler {
 
 /**
  * The confirmation checkbox for a Shop/Part Expense — a straight toggle, not
- * an edit of the expense itself. Ticking/unticking it as many times as
- * needed changes only whether this ONE existing row counts in the day's
- * totals; it never creates or deletes a row. Blocked once the day is closed,
- * same as deleting an expense — a closed day's totals are frozen and must be
- * re-opened before anything that feeds them can change.
+ * an edit of the expense itself, and it never creates or deletes a row. This
+ * is a manual tracking checkbox ONLY — the shop's own record of "I've
+ * personally checked this one" — it has no effect on the day's totals in
+ * either direction; a recorded expense counts from the moment it's
+ * recorded. Blocked once the day is closed, same as deleting an expense —
+ * a closed day is frozen and must be re-opened before anything on it can
+ * change.
  */
 export class ToggleShopExpenseConfirmedService extends BaseHandler {
   async run() {
@@ -349,11 +335,11 @@ export class CloseCashDayService extends BaseHandler {
 
     const { start, end } = shopDayRange(businessDate);
 
-    // Confirmed entries only — the day's frozen figures must not include
-    // money that was never actually ticked as received/paid.
+    // isConfirmed is a manual tracking checkbox only, not a filter — every
+    // recorded entry for the day counts toward its frozen figures.
     const [collected, spent, cashCollected, cashSpent] = await Promise.all([
       db.RepairLedger.sum('amount', {
-        where: { paidAt: { [Op.between]: [start, end] }, isConfirmed: true },
+        where: { paidAt: { [Op.between]: [start, end] } },
         transaction,
       }),
       // Real money out only — a CREDIT purchase hasn't left the drawer yet,
@@ -362,16 +348,15 @@ export class CloseCashDayService extends BaseHandler {
         where: {
           spentAt: { [Op.between]: [start, end] },
           paymentMethod: { [Op.in]: ACTIVE_PAYMENT_METHODS },
-          isConfirmed: true,
         },
         transaction,
       }),
       db.RepairLedger.sum('amount', {
-        where: { paidAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH, isConfirmed: true },
+        where: { paidAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH },
         transaction,
       }),
       db.ShopExpense.sum('amount', {
-        where: { spentAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH, isConfirmed: true },
+        where: { spentAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH },
         transaction,
       }),
     ]);

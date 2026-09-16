@@ -71,11 +71,10 @@ export class GetCashMemoService extends BaseHandler {
       : [];
     const reversedIds = new Set(reversals.map((row) => Number(row.reversesEntryId)));
 
-    // Sum across the WHOLE filtered set, not just this page — CONFIRMED
-    // entries only. The list itself still shows every entry, ticked or not,
-    // so the checkbox is visible on each row; the total is what it has
-    // always meant, the money actually collected.
-    const filteredTotal = await db.RepairLedger.sum('amount', { where: { ...where, isConfirmed: true } });
+    // Sum across the WHOLE filtered set, not just this page. isConfirmed is
+    // a manual tracking checkbox only — every recorded entry counts here,
+    // ticked or not.
+    const filteredTotal = await db.RepairLedger.sum('amount', { where });
 
     return {
       ...getSuccessResponse('Cash memo fetched successfully.'),
@@ -111,8 +110,6 @@ export class GetDailyCollectionService extends BaseHandler {
     }
 
     if (paymentMethod) where.paymentMethod = paymentMethod;
-    // Confirmed money only — unticked entries aren't collected yet.
-    where.isConfirmed = true;
 
     const grouped = await db.RepairLedger.findAll({
       attributes: [
@@ -166,7 +163,7 @@ export class GetPendingPaymentsService extends BaseHandler {
     const paidRows = jobIds.length
       ? await db.RepairLedger.findAll({
           attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-          where: { repairJobId: { [Op.in]: jobIds }, isConfirmed: true },
+          where: { repairJobId: { [Op.in]: jobIds } },
           group: ['repair_job_id'],
           raw: true,
         })

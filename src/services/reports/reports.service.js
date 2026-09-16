@@ -37,7 +37,7 @@ const paidByJobMap = async (jobIds) => {
   if (!jobIds.length) return new Map();
   const rows = await db.RepairLedger.findAll({
     attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-    where: { repairJobId: { [Op.in]: jobIds }, isConfirmed: true },
+    where: { repairJobId: { [Op.in]: jobIds } },
     group: ['repair_job_id'],
     raw: true,
   });
@@ -320,9 +320,9 @@ export class GetCollectionReportService extends BaseHandler {
   async run() {
     const { paymentMethod } = this.args;
 
-    // Confirmed money only — an unticked "Payment Received" checkbox means
-    // it hasn't actually been collected yet.
-    const where = { ...dateWhere(this.args, 'paidAt'), isConfirmed: true };
+    // isConfirmed is a manual tracking checkbox only — a recorded payment
+    // counts the moment it's recorded, ticked or not.
+    const where = { ...dateWhere(this.args, 'paidAt') };
     if (paymentMethod) where.paymentMethod = paymentMethod;
 
     const rows = await db.RepairLedger.findAll({
@@ -391,7 +391,7 @@ export class GetExpenseReportService extends BaseHandler {
     const dateFilter = dateWhere(this.args, 'spentAt');
     const isCreditFilter = category === 'CREDIT';
 
-    const where = { ...dateFilter, isConfirmed: true };
+    const where = { ...dateFilter };
     if (isCreditFilter) where.paymentMethod = 'CREDIT';
     else if (category) where.category = category;
 
@@ -407,7 +407,7 @@ export class GetExpenseReportService extends BaseHandler {
       // Independent of `category`/`isCreditFilter` — see the class doc.
       db.ShopExpense.findAll({
         attributes: ['paymentMethod', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'total']],
-        where: { ...dateFilter, isConfirmed: true },
+        where: { ...dateFilter },
         group: ['payment_method'],
         raw: true,
       }),
