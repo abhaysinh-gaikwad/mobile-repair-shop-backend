@@ -4,7 +4,7 @@ import db from '@src/db/models';
 import { getPaginationResponse, getSuccessResponse } from '@src/helpers/response.helpers';
 import { resolveDateRange } from '@src/libs/dayjs';
 import { BaseHandler } from '@src/libs/logicBase';
-import { CLOSED_REPAIR_STATUSES } from '@src/utils/constants/public.constants';
+import { CLOSED_REPAIR_STATUSES, REPAIR_STATUS } from '@src/utils/constants/public.constants';
 import { round2, subtractAmounts } from '@src/utils/money.utils';
 import { applyDateRangeFilter } from '@src/utils/query.utils';
 
@@ -33,7 +33,19 @@ export default class GetRepairsService extends BaseHandler {
     } = this.args;
 
     const where = {};
-    if (status) where.status = status;
+    if (status) {
+      // One status, or several joined by commas — the latter is how the
+      // Dashboard's "In Repair" card (a combined pipeline bucket of several
+      // statuses, not one) links here with the exact same set it counted.
+      // Unknown values are dropped rather than erroring, same tolerance as
+      // every other free-text filter on this endpoint.
+      const statuses = String(status)
+        .split(',')
+        .map((value) => value.trim())
+        .filter((value) => Object.values(REPAIR_STATUS).includes(value));
+      if (statuses.length === 1) where.status = statuses[0];
+      else if (statuses.length > 1) where.status = { [Op.in]: statuses };
+    }
     if (engineerId) where.engineerId = engineerId;
     if (leadSource) where.leadSource = leadSource;
     if (leadHandlerId) where.leadHandlerId = leadHandlerId;
