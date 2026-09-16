@@ -48,7 +48,7 @@ export default class GetDeviceHistoryService extends BaseHandler {
     const paidRows = jobIds.length
       ? await db.RepairLedger.findAll({
           attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-          where: { repairJobId: { [Op.in]: jobIds } },
+          where: { repairJobId: { [Op.in]: jobIds }, isConfirmed: true },
           group: ['repair_job_id'],
           raw: true,
         })

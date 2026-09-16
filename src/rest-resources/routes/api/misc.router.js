@@ -7,6 +7,7 @@ import {
   createSupplierSchema,
   customerIdSchema,
   dailyCollectionSchema,
+  dashboardSummarySchema,
   deliveryReportSchema,
   engineerReportSchema,
   expenseReportSchema,
@@ -29,15 +30,14 @@ import {
   addPaymentByReceiptSchema,
   addShopExpenseSchema,
   closeCashDaySchema,
-  confirmUnconfirmedPaymentSchema,
   getCashDaySchema,
-  getUnconfirmedPaymentsSchema,
   lookupReceiptSchema,
   openCashDaySchema,
-  rejectUnconfirmedPaymentSchema,
   reopenCashDaySchema,
   reverseManualEntrySchema,
   shopExpenseIdSchema,
+  toggleLedgerConfirmedSchema,
+  toggleShopExpenseConfirmedSchema,
 } from '@src/json-schemas/billing/cashDay.schema';
 import BillingController from '@src/rest-resources/controllers/billing.controller';
 import CustomerController from '@src/rest-resources/controllers/customer.controller';
@@ -110,26 +110,20 @@ billingRouter.post('/cash-day/reopen', ...write(P('BILLING', 'EDIT'), reopenCash
 // ---- Money OUT: parts bought from a shop (never customer revenue) ----
 billingRouter.post('/expenses', ...write(P('BILLING', 'CREATE'), addShopExpenseSchema, BillingController.addShopExpense));
 billingRouter.delete('/expenses/:id', ...write(P('BILLING', 'DELETE'), shopExpenseIdSchema, BillingController.deleteShopExpense));
+// The confirmation checkbox — a correction to an EXISTING row, not new
+// money, so it sits on EDIT like cash-day/reopen does.
+billingRouter.patch(
+  '/expenses/:id/confirmation',
+  ...write(P('BILLING', 'EDIT'), toggleShopExpenseConfirmedSchema, BillingController.toggleShopExpenseConfirmed),
+);
 
 // ---- Money IN: customer payment, looked up by the receipt number ----
 billingRouter.get('/receipt/:receiptNumber', ...read(P('BILLING', 'VIEW'), lookupReceiptSchema, BillingController.lookupReceipt));
 billingRouter.post('/payments', ...write(P('BILLING', 'CREATE'), addPaymentByReceiptSchema, BillingController.addPaymentByReceipt));
-
-// ---- "Payment Received" left UNTICKED — never touches the ledger until
-// someone explicitly confirms it. Confirming CREATES a real payment (same
-// permission as /payments); rejecting is a correction, not new money, so it
-// sits on EDIT like cash-day/reopen does.
-billingRouter.get(
-  '/unconfirmed-payments',
-  ...read(P('BILLING', 'VIEW'), getUnconfirmedPaymentsSchema, BillingController.getUnconfirmedPayments),
-);
-billingRouter.post(
-  '/unconfirmed-payments/:id/confirm',
-  ...write(P('BILLING', 'CREATE'), confirmUnconfirmedPaymentSchema, BillingController.confirmUnconfirmedPayment),
-);
-billingRouter.post(
-  '/unconfirmed-payments/:id/reject',
-  ...write(P('BILLING', 'EDIT'), rejectUnconfirmedPaymentSchema, BillingController.rejectUnconfirmedPayment),
+// Same checkbox, same reasoning, for a Customer Payment row.
+billingRouter.patch(
+  '/payments/:id/confirmation',
+  ...write(P('BILLING', 'EDIT'), toggleLedgerConfirmedSchema, BillingController.toggleLedgerConfirmed),
 );
 
 // ---- Money IN with NO repair receipt: ad-hoc payments and old paper records.
@@ -163,7 +157,7 @@ supplierRouter.patch('/:id/status', ...write(P('STAFF', 'EDIT'), toggleSchema, S
 
 // ------------------------------------------------------------- dashboard
 export const dashboardRouter = express.Router({ mergeParams: true });
-dashboardRouter.get('/summary', ...read(P('DASHBOARD', 'VIEW'), null, ReportController.dashboard));
+dashboardRouter.get('/summary', ...read(P('DASHBOARD', 'VIEW'), dashboardSummarySchema, ReportController.dashboard));
 
 // -------------------------------------------------------------- settings
 export const settingRouter = express.Router({ mergeParams: true });

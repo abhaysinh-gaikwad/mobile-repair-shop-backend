@@ -78,7 +78,7 @@ export default class GetRepairsService extends BaseHandler {
     const paidRows = jobIds.length
       ? await db.RepairLedger.findAll({
           attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-          where: { repairJobId: { [Op.in]: jobIds } },
+          where: { repairJobId: { [Op.in]: jobIds }, isConfirmed: true },
           group: ['repair_job_id'],
           raw: true,
         })
@@ -112,6 +112,10 @@ export default class GetRepairsService extends BaseHandler {
         customerComplaint: plain.customerComplaint,
         receivedAt: plain.receivedAt,
         deliveredAt: plain.deliveredAt,
+        // The quote given at the counter — the SUM of this job's itemised
+        // estimate rows. Null (not 0) when nothing was quoted yet, same
+        // meaning as everywhere else this column is read.
+        estimatedCost: plain.estimatedCost === null ? null : round2(plain.estimatedCost),
         totalAmount,
         totalPaid,
         balance: subtractAmounts(totalAmount, totalPaid),

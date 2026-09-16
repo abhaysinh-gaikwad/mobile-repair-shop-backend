@@ -47,6 +47,9 @@ const createRepairSchema = {
       // Set when this is a repeat repair of a previously delivered job. The
       // old job is only referenced — a brand new receipt number is issued.
       previousRepairJobId: { type: 'integer', minimum: 1, nullable: true },
+      // A plain "returning customer" tick — independent of the link above.
+      // Prints REPEAT on the receipt when true.
+      isRepeatCustomer: { type: 'boolean' },
 
       engineerId: { type: 'integer', minimum: 1, nullable: true },
       // Multiple quote components entered together at intake (e.g. "500

@@ -34,6 +34,7 @@ export const shopDayRange = (date) => {
 export const DATE_PRESETS = Object.freeze({
   TODAY: 'TODAY',
   YESTERDAY: 'YESTERDAY',
+  LAST_7_DAYS: 'LAST_7_DAYS',
   THIS_WEEK: 'THIS_WEEK',
   LAST_WEEK: 'LAST_WEEK',
   THIS_MONTH: 'THIS_MONTH',
@@ -60,6 +61,9 @@ export function resolveDateRange({ preset, dateFrom, dateTo } = {}) {
       const yesterday = now.subtract(1, 'day');
       return range(yesterday, yesterday);
     }
+    // Inclusive of today: "last 7 days" means today and the 6 before it.
+    case DATE_PRESETS.LAST_7_DAYS:
+      return range(now.subtract(6, 'day'), now);
     case DATE_PRESETS.THIS_WEEK:
       return range(now.startOf('week'), now.endOf('week'));
     case DATE_PRESETS.LAST_WEEK: {

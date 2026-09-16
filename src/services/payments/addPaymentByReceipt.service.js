@@ -3,7 +3,6 @@ import { AppError } from '@src/errors/app.error';
 import { Errors } from '@src/errors/errorCodes';
 import { getSuccessResponse } from '@src/helpers/response.helpers';
 import { BaseHandler } from '@src/libs/logicBase';
-import { CreateUnconfirmedPaymentService } from '@src/services/payments/unconfirmedPayment.service';
 import AddPaymentService from './addPayment.service';
 
 /**
@@ -13,19 +12,19 @@ import AddPaymentService from './addPayment.service';
  * This is now the only way payments are recorded — the repair screen no longer
  * collects money. Resolving the receipt here guarantees every rupee is still
  * tied to the correct repair and customer, exactly as before; only the entry
- * point moved.
+ * point moved. The actual ledger write is delegated to `AddPaymentService` so
+ * there is one implementation of the money path, not two.
  *
- * `confirmed` is the "Payment Received" checkbox. It defaults to `true` —
- * missing the field must never silently stop money being recorded, since that
- * was the only behaviour that existed before this flag was added. Ticked
- * (the common case) writes a real `repair_ledger` row exactly as before, via
- * `AddPaymentService` — one implementation of the money path, not two.
- * Unticked writes a staging row instead — see `CreateUnconfirmedPaymentService`
- * for why that row deliberately never touches the ledger.
+ * A payment is always recorded straight away, exactly as it always has been
+ * — the "confirmed or not" question is answered AFTER the fact, with the
+ * checkbox on the row itself (see toggleLedgerConfirmation.service.js), not
+ * at entry time. There used to be a separate "Payment Received" tick right
+ * here with its own staging table; it was removed at the shop's explicit
+ * request in favour of one simple, always-toggleable checkbox on the entry.
  */
 export default class AddPaymentByReceiptService extends BaseHandler {
   async run() {
-    const { receiptNumber, confirmed = true, ...rest } = this.args;
+    const { receiptNumber, ...rest } = this.args;
 
     const repairJob = await db.RepairJob.findOne({
       where: { receiptNumber: String(receiptNumber).trim().toUpperCase() },
@@ -35,16 +34,14 @@ export default class AddPaymentByReceiptService extends BaseHandler {
 
     if (!repairJob) throw new AppError(Errors.RECEIPT_NOT_FOUND(receiptNumber));
 
-    // Both branches run directly (`.run()`, not `.execute()`) so the write
-    // shares this request's transaction rather than opening/committing its own.
-    const inner = confirmed
-      ? new AddPaymentService({ ...rest, repairJobId: repairJob.id }, this.context)
-      : new CreateUnconfirmedPaymentService({ ...rest, repairJobId: repairJob.id }, this.context);
+    // Reuse the existing, tested ledger path. `execute` would try to commit the
+    // request transaction, so the inner service is run directly.
+    const inner = new AddPaymentService({ ...rest, repairJobId: repairJob.id }, this.context);
     const result = await inner.run();
 
     return {
       ...result,
-      ...(confirmed ? getSuccessResponse(`Payment recorded against ${repairJob.receiptNumber}.`) : {}),
+      ...getSuccessResponse(`Payment recorded against ${repairJob.receiptNumber}.`),
       repairJob: {
         id: repairJob.id,
         receiptNumber: repairJob.receiptNumber,

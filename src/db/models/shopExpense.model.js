@@ -35,6 +35,12 @@ module.exports = function (sequelize, DataTypes) {
         references: { model: 'repair_jobs', key: 'id' },
       },
       receiptNumber: { type: DataTypes.STRING(20), allowNull: true, field: 'receipt_number' },
+      /**
+       * Category=RETURN with no receipt number: who the money went back to.
+       * Not used for a normal purchase expense — `vendor`/`supplierId`
+       * already cover "who we bought FROM".
+       */
+      customerName: { type: DataTypes.STRING(120), allowNull: true, field: 'customer_name' },
       // Free-text fallback for an ad-hoc purchase with no registered supplier.
       // When `supplierId` is set, the supplier's own name is the source of truth.
       vendor: { type: DataTypes.STRING(120), allowNull: true },
@@ -56,6 +62,15 @@ module.exports = function (sequelize, DataTypes) {
         references: { model: 'admin_users', key: 'id' },
       },
       createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
+
+      /**
+       * Confirmation checkbox, same meaning and same rules as
+       * repair_ledger.isConfirmed: TRUE counts in every expense total,
+       * FALSE does not. Toggleable freely — a mistaken entry gets unticked,
+       * not deleted. Defaults TRUE so every existing/normally-recorded
+       * expense keeps counting exactly as it always has.
+       */
+      isConfirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_confirmed' },
     },
     {
       tableName: 'shop_expenses',
@@ -68,6 +83,7 @@ module.exports = function (sequelize, DataTypes) {
         { fields: ['payment_method'] },
         { fields: ['category'] },
         { fields: ['supplier_id'] },
+        { fields: ['is_confirmed'] },
       ],
     },
   );

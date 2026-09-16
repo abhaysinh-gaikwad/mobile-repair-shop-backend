@@ -47,7 +47,7 @@ export class GetSuppliersService extends BaseHandler {
               'credit',
             ],
           ],
-          where: { supplierId: { [Op.in]: supplierIds } },
+          where: { supplierId: { [Op.in]: supplierIds }, isConfirmed: true },
           group: ['supplier_id'],
           raw: true,
         })

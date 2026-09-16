@@ -13,16 +13,24 @@ const {
  * This is the ONLY place money is recorded. There is no separate payments
  * table, so there are never two sets of books that can disagree.
  *
- * It is IMMUTABLE AND APPEND-ONLY:
- *   - no UPDATE and no DELETE endpoint exists
- *   - `timestamps: false` (only created_at) — there is deliberately no
- *     updated_at column, because a row is never updated
- *   - a mistake is corrected by posting a REVERSAL row carrying a NEGATIVE
- *     amount, a link to the original, and a mandatory reason
+ * The FINANCIAL FACTS on a row are IMMUTABLE AND APPEND-ONLY:
+ *   - no endpoint edits amount, method, type, receipt, or customer
+ *   - a mistake in any of those is corrected by posting a REVERSAL row
+ *     carrying a NEGATIVE amount, a link to the original, and a mandatory
+ *     reason — never by changing the original row
  *
- * Because reversals are negative, `SUM(amount)` is always the correct answer
- * for a job, a day, or all time — no filtering, no is_deleted flag, no
- * special cases anywhere in the reporting code.
+ * `isConfirmed` is the ONE deliberate, narrow exception — a plain toggle, at
+ * the shop's explicit request: staff sometimes enter a payment that was
+ * never actually received, or need to un-tick one entered by mistake, as
+ * many times as it takes to get right. Every SUM that means "money actually
+ * in hand" (a job's balance, the Cash Drawer, daily/collection reports) must
+ * filter `isConfirmed: true` — see getRepairMoneySummary() and the Cash Memo
+ * services for the full list. New rows default to `true`: the checkbox
+ * exists to correct a mistake after the fact, not to make staff stop and
+ * decide at entry time.
+ *
+ * Because reversals are negative, `SUM(amount)` (among CONFIRMED rows) is
+ * always the correct answer for a job, a day, or all time.
  *
  * The customer/receipt columns are SNAPSHOTS taken at the moment money changed
  * hands: correcting a customer's name next month must not silently rewrite
@@ -137,6 +145,14 @@ module.exports = function (sequelize, DataTypes) {
       },
 
       createdAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW, field: 'created_at' },
+
+      /**
+       * The confirmation checkbox. TRUE = counted as real, in-hand money in
+       * every total; FALSE = entered, but not (or no longer) treated as
+       * collected. See the class doc above — this is the one field on this
+       * table that is ever updated after creation.
+       */
+      isConfirmed: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true, field: 'is_confirmed' },
     },
     {
       tableName: 'repair_ledger',

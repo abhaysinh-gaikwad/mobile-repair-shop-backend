@@ -77,20 +77,26 @@ export async function recalculateRepairTotal(repairJobId, transaction) {
 /**
  * Money summary for a job.
  *
- * `totalPaid` is a plain SUM over the ledger: because reversals are stored as
- * negative rows, they net out automatically and no filtering is required.
+ * `totalPaid` is a SUM over the ledger, restricted to `isConfirmed: true`:
+ * because reversals are stored as negative rows, they net out automatically
+ * within that set and no further filtering is required. An unticked
+ * ("Payment Received" left unchecked, or later un-confirmed) entry must not
+ * move a job's balance — that is the entire point of the checkbox.
  */
 export async function getRepairMoneySummary(repairJobId, transaction) {
   const repairJob = await db.RepairJob.findByPk(repairJobId, { transaction });
   if (!repairJob) return null;
 
-  const paidRaw = await db.RepairLedger.sum('amount', { where: { repairJobId }, transaction });
+  const paidRaw = await db.RepairLedger.sum('amount', {
+    where: { repairJobId, isConfirmed: true },
+    transaction,
+  });
 
   // Cash vs online, so the shop can see "Total ₹2,000 — Cash ₹1,000, Online
   // ₹1,000" when a customer splits payment across methods. Every non-CASH
   // method (including retired ones like PHONEPE/UPI) counts as "online" here.
   const cashRaw = await db.RepairLedger.sum('amount', {
-    where: { repairJobId, paymentMethod: 'CASH' },
+    where: { repairJobId, paymentMethod: 'CASH', isConfirmed: true },
     transaction,
   });
 

@@ -3,11 +3,7 @@ import {
   ReverseManualEntryService,
 } from '@src/services/billing/manualLedgerEntry.service';
 import { sendResponse } from '@src/helpers/response.helpers';
-import {
-  GetCashMemoService,
-  GetDailyCollectionService,
-  GetPendingPaymentsService,
-} from '@src/services/billing/billing.service';
+import { GetCashMemoService, GetDailyCollectionService, GetPendingPaymentsService } from '@src/services/billing/billing.service';
 import {
   AddShopExpenseService,
   CloseCashDayService,
@@ -15,14 +11,11 @@ import {
   GetCashDayService,
   OpenCashDayService,
   ReopenCashDayService,
+  ToggleShopExpenseConfirmedService,
 } from '@src/services/billing/cashDay.service';
 import AddPaymentByReceiptService from '@src/services/payments/addPaymentByReceipt.service';
 import LookupReceiptService from '@src/services/payments/lookupReceipt.service';
-import {
-  ConfirmUnconfirmedPaymentService,
-  GetUnconfirmedPaymentsService,
-  RejectUnconfirmedPaymentService,
-} from '@src/services/payments/unconfirmedPayment.service';
+import ToggleLedgerConfirmationService from '@src/services/payments/toggleLedgerConfirmation.service';
 
 export default class BillingController {
   // ------------------------------------------------------------ cash day
@@ -79,6 +72,19 @@ export default class BillingController {
     }
   }
 
+  /** The confirmation checkbox on one Shop/Part Expense row. */
+  static async toggleShopExpenseConfirmed(req, res, next) {
+    try {
+      const data = await ToggleShopExpenseConfirmedService.execute(
+        { id: Number(req.params.id), ...req.body },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   // --------------------------------------- customer payment by receipt no
   static async lookupReceipt(req, res, next) {
     try {
@@ -97,6 +103,20 @@ export default class BillingController {
       next(error);
     }
   }
+
+  /** The confirmation checkbox on one Customer Payment row. */
+  static async toggleLedgerConfirmed(req, res, next) {
+    try {
+      const data = await ToggleLedgerConfirmationService.execute(
+        { id: Number(req.params.id), ...req.body },
+        req.context,
+      );
+      sendResponse({ req, res, next }, data);
+    } catch (error) {
+      next(error);
+    }
+  }
+
   static async getCashMemo(req, res, next) {
     try {
       const data = await GetCashMemoService.execute({ ...req.query }, req.context);
@@ -118,40 +138,6 @@ export default class BillingController {
   static async getPending(req, res, next) {
     try {
       const data = await GetPendingPaymentsService.execute({ ...req.query }, req.context);
-      sendResponse({ req, res, next }, data);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  // ---- "Payment Received" left unticked — awaiting confirmation ----
-  static async getUnconfirmedPayments(req, res, next) {
-    try {
-      const data = await GetUnconfirmedPaymentsService.execute({ ...req.query }, req.context);
-      sendResponse({ req, res, next }, data);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async confirmUnconfirmedPayment(req, res, next) {
-    try {
-      const data = await ConfirmUnconfirmedPaymentService.execute(
-        { id: Number(req.params.id), adminId: req.user.id },
-        req.context,
-      );
-      sendResponse({ req, res, next }, data);
-    } catch (error) {
-      next(error);
-    }
-  }
-
-  static async rejectUnconfirmedPayment(req, res, next) {
-    try {
-      const data = await RejectUnconfirmedPaymentService.execute(
-        { id: Number(req.params.id), ...req.body, adminId: req.user.id },
-        req.context,
-      );
       sendResponse({ req, res, next }, data);
     } catch (error) {
       next(error);

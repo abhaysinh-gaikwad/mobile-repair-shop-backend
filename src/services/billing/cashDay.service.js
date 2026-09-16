@@ -15,7 +15,6 @@ import {
   EXPENSE_CATEGORY,
   EXPENSE_PAYMENT_METHOD,
   PAYMENT_METHOD,
-  UNCONFIRMED_PAYMENT_STATUS,
 } from '@src/utils/constants/public.constants';
 import { round2, subtractAmounts } from '@src/utils/money.utils';
 
@@ -84,6 +83,13 @@ export class OpenCashDayService extends BaseHandler {
  * Everything that happened on one day: opening balance, customer collections,
  * shop expenses, per-method totals, closing balance and the full transaction
  * list. This is what the Cash Memo screen renders.
+ *
+ * `payments` and `expenses` list EVERY entry for the day regardless of its
+ * `isConfirmed` state — that flag is what drives the checkbox on each row —
+ * but every SUMMARY TOTAL below (collectionsByMethod, totalCollections,
+ * expensesByMethod, totalExpenses, totalCredit, the cash-drawer figures)
+ * counts CONFIRMED entries only. An unticked "Payment Received" (or a
+ * mistaken expense someone has since unticked) must not move any of them.
  */
 export class GetCashDayService extends BaseHandler {
   async run() {
@@ -93,7 +99,7 @@ export class GetCashDayService extends BaseHandler {
 
     const cashDay = await db.CashDay.findOne({ where: { businessDate } });
 
-    const [payments, expenses, pendingPayments] = await Promise.all([
+    const [payments, expenses] = await Promise.all([
       db.RepairLedger.findAll({
         where: { paidAt: { [Op.between]: [start, end] } },
         include: [{ model: db.AdminUser, as: 'receiver', attributes: ['id', 'name'] }],
@@ -107,18 +113,6 @@ export class GetCashDayService extends BaseHandler {
         ],
         order: [['spentAt', 'ASC']],
       }),
-      // "Payment Received" left unticked for THIS day. Returned as its own
-      // list, deliberately shaped like `payments`, so the Customer Payments
-      // table can show a pending entry inline right where it happened rather
-      // than only in the separate "Payments Awaiting Confirmation" panel
-      // (which stays cross-date, on purpose — this list is day-scoped, same
-      // as `payments` above, so an old forgotten one from a different day
-      // still needs that panel to be seen).
-      db.UnconfirmedPayment.findAll({
-        where: { paidAt: { [Op.between]: [start, end] }, status: UNCONFIRMED_PAYMENT_STATUS.PENDING },
-        include: [{ model: db.AdminUser, as: 'creator', attributes: ['id', 'name'] }],
-        order: [['paidAt', 'ASC']],
-      }),
     ]);
 
     // Which payments have been reversed, so the UI can strike them through.
@@ -129,10 +123,16 @@ export class GetCashDayService extends BaseHandler {
     const collectionsByMethod = emptyMethodTotals();
     const expensesByMethod = emptyExpenseMethodTotals();
 
-    // Reversals are negative rows, so a plain sum nets them out automatically.
+    // Reversals are negative rows, so a plain sum nets them out automatically
+    // WITHIN the confirmed set.
     let totalCollections = 0;
+    let unconfirmedCollections = 0;
     for (const entry of payments) {
       const amount = round2(entry.amount);
+      if (!entry.isConfirmed) {
+        unconfirmedCollections = round2(unconfirmedCollections + amount);
+        continue;
+      }
       totalCollections = round2(totalCollections + amount);
       const key = ALL_PAYMENT_METHODS.includes(entry.paymentMethod) ? entry.paymentMethod : 'OTHER';
       collectionsByMethod[key] = round2((collectionsByMethod[key] ?? 0) + amount);
@@ -143,8 +143,13 @@ export class GetCashDayService extends BaseHandler {
     // overstated by a purchase nobody has paid for yet.
     let totalExpenses = 0;
     let totalCredit = 0;
+    let unconfirmedExpenses = 0;
     for (const expense of expenses) {
       const amount = round2(expense.amount);
+      if (!expense.isConfirmed) {
+        unconfirmedExpenses = round2(unconfirmedExpenses + amount);
+        continue;
+      }
       const key = ALL_EXPENSE_PAYMENT_METHODS.includes(expense.paymentMethod) ? expense.paymentMethod : 'OTHER';
       expensesByMethod[key] = round2((expensesByMethod[key] ?? 0) + amount);
       if (expense.paymentMethod === EXPENSE_PAYMENT_METHOD.CREDIT) totalCredit = round2(totalCredit + amount);
@@ -178,8 +183,13 @@ export class GetCashDayService extends BaseHandler {
         expensesByMethod,
         paymentCount: payments.length,
         expenseCount: expenses.length,
-        pendingCount: pendingPayments.length,
+        // Unticked-checkbox money, left OUT of every total above, shown so
+        // the day's summary can name it rather than let it go quietly missing.
+        unconfirmedCollections,
+        unconfirmedExpenses,
       },
+      // Every entry for the day, confirmed or not — `isConfirmed` on each
+      // row is what the checkbox in the UI reads and toggles.
       payments: payments.map((entry) => {
         const plain = entry.toJSON();
         return {
@@ -189,11 +199,6 @@ export class GetCashDayService extends BaseHandler {
         };
       }),
       expenses: expenses.map((expense) => ({ ...expense.toJSON(), amount: round2(expense.amount) })),
-      // "Payment Received" left unticked — no entryNo yet (that's assigned
-      // only when a real repair_ledger row is created, at confirm time), so
-      // the frontend tells these apart from `payments` by the presence of
-      // this array rather than a per-row flag.
-      pendingPayments: pendingPayments.map((entry) => ({ ...entry.toJSON(), amount: round2(entry.amount) })),
     };
   }
 }
@@ -213,6 +218,7 @@ export class AddShopExpenseService extends BaseHandler {
       paymentMethod,
       category,
       receiptNumber,
+      customerName,
       vendor,
       supplierId,
       broughtBy,
@@ -223,7 +229,18 @@ export class AddShopExpenseService extends BaseHandler {
 
     if (round2(amount) <= 0) throw new AppError(Errors.INVALID_PAYMENT_AMOUNT);
 
-    // Optionally tie the part to the repair it was bought for.
+    const isReturn = category === EXPENSE_CATEGORY.RETURN;
+    // A Return has to be traceable to SOMEONE — the receipt if there is one,
+    // the customer's name if there isn't (e.g. an advance refunded on a job
+    // that was never actually booked, or a paper-era job with no receipt in
+    // this system). Not enforced for any other category — an ordinary parts
+    // purchase has never needed either field.
+    if (isReturn && !receiptNumber && !customerName?.trim()) {
+      throw new AppError(Errors.RETURN_NEEDS_RECEIPT_OR_CUSTOMER);
+    }
+
+    // Optionally tie the part to the repair it was bought for (or, for a
+    // Return, the job the money is being refunded against).
     let repairJob = null;
     if (receiptNumber) {
       repairJob = await db.RepairJob.findOne({ where: { receiptNumber: String(receiptNumber).trim() }, transaction });
@@ -247,10 +264,14 @@ export class AddShopExpenseService extends BaseHandler {
         category: category ?? EXPENSE_CATEGORY.MATERIAL,
         repairJobId: repairJob?.id ?? null,
         receiptNumber: repairJob?.receiptNumber ?? null,
+        // Only meaningful for a Return with no receipt — see the check above.
+        customerName: isReturn ? customerName?.trim() || null : null,
         supplierId: supplier?.id ?? null,
         // A registered supplier's own name is the source of truth; free-text
         // `vendor` is only used for an ad-hoc purchase with no supplier record.
         vendor: supplier ? supplier.name : (vendor ?? null),
+        // "Brought By" for a purchase, "Returned By" for a Return — same
+        // column, the frontend just relabels it per category.
         broughtBy: broughtBy ?? null,
         spentAt: spentAt ? new Date(spentAt) : new Date(),
         recordedBy: adminId ?? null,
@@ -286,6 +307,35 @@ export class DeleteShopExpenseService extends BaseHandler {
   }
 }
 
+/**
+ * The confirmation checkbox for a Shop/Part Expense — a straight toggle, not
+ * an edit of the expense itself. Ticking/unticking it as many times as
+ * needed changes only whether this ONE existing row counts in the day's
+ * totals; it never creates or deletes a row. Blocked once the day is closed,
+ * same as deleting an expense — a closed day's totals are frozen and must be
+ * re-opened before anything that feeds them can change.
+ */
+export class ToggleShopExpenseConfirmedService extends BaseHandler {
+  async run() {
+    const { id, isConfirmed } = this.args;
+    const transaction = this.dbTransaction;
+
+    const expense = await db.ShopExpense.findByPk(id, { transaction });
+    if (!expense) throw new AppError(Errors.SHOP_EXPENSE_NOT_FOUND);
+
+    const businessDate = shopDayRange(expense.spentAt).start.toISOString().slice(0, 10);
+    const cashDay = await db.CashDay.findOne({ where: { businessDate }, transaction });
+    if (cashDay?.status === CASH_DAY_STATUS.CLOSED) throw new AppError(Errors.CASH_DAY_CLOSED(cashDay.businessDate));
+
+    await expense.update({ isConfirmed: Boolean(isConfirmed) }, { transaction });
+
+    return {
+      ...getSuccessResponse(isConfirmed ? 'Expense confirmed.' : 'Expense marked as not confirmed.'),
+      expense,
+    };
+  }
+}
+
 /** Close the day and freeze its totals. */
 export class CloseCashDayService extends BaseHandler {
   async run() {
@@ -299,20 +349,29 @@ export class CloseCashDayService extends BaseHandler {
 
     const { start, end } = shopDayRange(businessDate);
 
+    // Confirmed entries only — the day's frozen figures must not include
+    // money that was never actually ticked as received/paid.
     const [collected, spent, cashCollected, cashSpent] = await Promise.all([
-      db.RepairLedger.sum('amount', { where: { paidAt: { [Op.between]: [start, end] } }, transaction }),
+      db.RepairLedger.sum('amount', {
+        where: { paidAt: { [Op.between]: [start, end] }, isConfirmed: true },
+        transaction,
+      }),
       // Real money out only — a CREDIT purchase hasn't left the drawer yet,
       // so it must not appear in the day's frozen "expenses" snapshot.
       db.ShopExpense.sum('amount', {
-        where: { spentAt: { [Op.between]: [start, end] }, paymentMethod: { [Op.in]: ACTIVE_PAYMENT_METHODS } },
+        where: {
+          spentAt: { [Op.between]: [start, end] },
+          paymentMethod: { [Op.in]: ACTIVE_PAYMENT_METHODS },
+          isConfirmed: true,
+        },
         transaction,
       }),
       db.RepairLedger.sum('amount', {
-        where: { paidAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH },
+        where: { paidAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH, isConfirmed: true },
         transaction,
       }),
       db.ShopExpense.sum('amount', {
-        where: { spentAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH },
+        where: { spentAt: { [Op.between]: [start, end] }, paymentMethod: PAYMENT_METHOD.CASH, isConfirmed: true },
         transaction,
       }),
     ]);

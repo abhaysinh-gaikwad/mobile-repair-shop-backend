@@ -91,6 +91,15 @@ module.exports = function (sequelize, DataTypes) {
       },
       repeatOfReceipt: { type: DataTypes.STRING(20), allowNull: true, field: 'repeat_of_receipt' },
 
+      /**
+       * A plain staff-ticked "this customer has been here before" flag —
+       * deliberately separate from `previousRepairJobId` above, which means
+       * something more specific (a link to one particular earlier job). This
+       * is looser: ticking it never implies, or requires, a specific prior
+       * receipt. Prints "REPEAT" on the receipt when true.
+       */
+      isRepeatCustomer: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false, field: 'is_repeat_customer' },
+
       diagnosis: { type: DataTypes.TEXT, allowNull: true },
       repairDetails: { type: DataTypes.TEXT, allowNull: true, field: 'repair_details' },
       notes: { type: DataTypes.TEXT, allowNull: true },
@@ -161,7 +170,6 @@ module.exports = function (sequelize, DataTypes) {
 
     RepairJob.hasMany(models.RepairPart, { foreignKey: 'repairJobId', as: 'parts' });
     RepairJob.hasMany(models.RepairLedger, { foreignKey: 'repairJobId', as: 'ledgerEntries' });
-    RepairJob.hasMany(models.UnconfirmedPayment, { foreignKey: 'repairJobId', as: 'unconfirmedPayments' });
     RepairJob.hasMany(models.RepairCallLog, { foreignKey: 'repairJobId', as: 'callLogs' });
     RepairJob.hasMany(models.RepairEstimate, { foreignKey: 'repairJobId', as: 'estimates' });
     RepairJob.hasMany(models.RepairStatusHistory, { foreignKey: 'repairJobId', as: 'statusHistory' });

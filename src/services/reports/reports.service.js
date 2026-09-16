@@ -37,7 +37,7 @@ const paidByJobMap = async (jobIds) => {
   if (!jobIds.length) return new Map();
   const rows = await db.RepairLedger.findAll({
     attributes: ['repairJobId', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'paid']],
-    where: { repairJobId: { [Op.in]: jobIds } },
+    where: { repairJobId: { [Op.in]: jobIds }, isConfirmed: true },
     group: ['repair_job_id'],
     raw: true,
   });
@@ -320,7 +320,9 @@ export class GetCollectionReportService extends BaseHandler {
   async run() {
     const { paymentMethod } = this.args;
 
-    const where = { ...dateWhere(this.args, 'paidAt') };
+    // Confirmed money only — an unticked "Payment Received" checkbox means
+    // it hasn't actually been collected yet.
+    const where = { ...dateWhere(this.args, 'paidAt'), isConfirmed: true };
     if (paymentMethod) where.paymentMethod = paymentMethod;
 
     const rows = await db.RepairLedger.findAll({
@@ -364,30 +366,52 @@ export class GetCollectionReportService extends BaseHandler {
 }
 
 /**
- * Expense report — Date + Category (Material / Loss / Other / All Expense).
+ * Expense report — Date + Type (Material / Loss / Other / Return / Credit /
+ * All Expense).
  *
- * "All Expense" is simply the absence of a category filter — it is not a
- * stored value, so it needs no special-casing here.
+ * "All Expense" is simply the absence of a type filter — it is not a stored
+ * value, so it needs no special-casing here. "Credit" is NOT a stored
+ * category either — it is a `paymentMethod`, cutting across every category
+ * (a Material purchase or a Return can equally be put on credit) — so
+ * selecting it filters by payment method instead of category.
  *
- * CREDIT-method expenses are money owed to a supplier, not money that has
- * left the drawer, so they are reported separately (`totalCredit`) rather
- * than folded into `totalSpent`.
+ * The three payment-method boxes (Cash/Online/Credit) are computed
+ * separately from the list below, over the SAME date range but WITHOUT the
+ * type filter applied — they are meant to stay fixed reference totals while
+ * the list narrows, not shrink along with it.
+ *
+ * Only CONFIRMED expenses count anywhere here — the "Payment Received"-style
+ * checkbox now on every expense row means an unticked one hasn't actually
+ * left the drawer yet, so a report of what the shop spent must not include it.
  */
 export class GetExpenseReportService extends BaseHandler {
   async run() {
     const { category } = this.args;
 
-    const where = { ...dateWhere(this.args, 'spentAt') };
-    if (category) where.category = category;
+    const dateFilter = dateWhere(this.args, 'spentAt');
+    const isCreditFilter = category === 'CREDIT';
 
-    const expenses = await db.ShopExpense.findAll({
-      where,
-      include: [
-        { model: db.Supplier, as: 'supplier', attributes: ['id', 'name'] },
-        { model: db.RepairJob, as: 'repairJob', attributes: ['id', 'receiptNumber'] },
-      ],
-      order: [['spentAt', 'DESC']],
-    });
+    const where = { ...dateFilter, isConfirmed: true };
+    if (isCreditFilter) where.paymentMethod = 'CREDIT';
+    else if (category) where.category = category;
+
+    const [expenses, methodRows] = await Promise.all([
+      db.ShopExpense.findAll({
+        where,
+        include: [
+          { model: db.Supplier, as: 'supplier', attributes: ['id', 'name'] },
+          { model: db.RepairJob, as: 'repairJob', attributes: ['id', 'receiptNumber'] },
+        ],
+        order: [['spentAt', 'DESC']],
+      }),
+      // Independent of `category`/`isCreditFilter` — see the class doc.
+      db.ShopExpense.findAll({
+        attributes: ['paymentMethod', [db.sequelize.fn('SUM', db.sequelize.col('amount')), 'total']],
+        where: { ...dateFilter, isConfirmed: true },
+        group: ['payment_method'],
+        raw: true,
+      }),
+    ]);
 
     const byCategory = Object.values(EXPENSE_CATEGORY).reduce((acc, value) => ({ ...acc, [value]: 0 }), {});
     let totalSpent = 0; // CASH + ONLINE only — real money out
@@ -398,6 +422,13 @@ export class GetExpenseReportService extends BaseHandler {
       byCategory[expense.category] = round2((byCategory[expense.category] ?? 0) + amount);
       if (expense.paymentMethod === 'CREDIT') totalCredit = round2(totalCredit + amount);
       else totalSpent = round2(totalSpent + amount);
+    }
+
+    // The three summary boxes, unaffected by the type filter above.
+    const byPaymentMethod = { CASH: 0, ONLINE: 0, CREDIT: 0 };
+    for (const row of methodRows) {
+      const key = byPaymentMethod[row.paymentMethod] !== undefined ? row.paymentMethod : 'ONLINE';
+      byPaymentMethod[key] = round2(byPaymentMethod[key] + round2(row.total));
     }
 
     return {
@@ -412,6 +443,9 @@ export class GetExpenseReportService extends BaseHandler {
         totalCredit,
         totalAll: round2(totalSpent + totalCredit),
         byCategory,
+        // Cash / Online / Credit totals for the period — the three
+        // always-visible boxes, independent of the type filter.
+        byPaymentMethod,
       },
     };
   }

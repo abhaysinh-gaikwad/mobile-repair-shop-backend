@@ -79,24 +79,6 @@ export const LEDGER_SOURCE = Object.freeze({
 export const ACTIVE_LEDGER_SOURCES = Object.freeze(Object.values(LEDGER_SOURCE));
 
 /**
- * Lifecycle of a payment entered with "Payment Received" left UNTICKED.
- *
- * PENDING rows live only in `unconfirmed_payments` — never in
- * `repair_ledger` — so they cannot affect a job's balance or any Cash Memo
- * total until a person explicitly resolves them. CONFIRMED means a real
- * ledger row was created for it (see `confirmedLedgerEntryId`); REJECTED
- * means staff decided the money was never actually received and no ledger
- * row will ever be created for it.
- */
-export const UNCONFIRMED_PAYMENT_STATUS = Object.freeze({
-  PENDING: 'PENDING',
-  CONFIRMED: 'CONFIRMED',
-  REJECTED: 'REJECTED',
-});
-
-export const ACTIVE_UNCONFIRMED_PAYMENT_STATUSES = Object.freeze(Object.values(UNCONFIRMED_PAYMENT_STATUS));
-
-/**
  * How a customer paid. Only Cash and Online are offered going forward.
  *
  * Legacy values (PHONEPE / GOOGLE_PAY / UPI / CARD / BANK_TRANSFER / OTHER)
@@ -145,12 +127,29 @@ export const ALL_EXPENSE_PAYMENT_METHODS = Object.freeze([
 /**
  * What a shop expense was for. "All Expense" (no filter) is not a stored
  * value — it just means "don't filter by category".
+ *
+ * RETURN is money handed BACK to a customer (e.g. an advance refunded
+ * because a repair couldn't be completed) — kept as its own category,
+ * separate from Material/Loss/Other, so it can be tracked on its own rather
+ * than folded into "Other Expense".
  */
 export const EXPENSE_CATEGORY = Object.freeze({
   MATERIAL: 'MATERIAL',
   LOSS: 'LOSS',
   OTHER: 'OTHER',
+  RETURN: 'RETURN',
 });
+
+/**
+ * The Reports → Expense Report "Expense Type" filter. Every real category
+ * PLUS the pseudo-value CREDIT, which is not a category at all — it is a
+ * `paymentMethod`, cutting across every category (a Material purchase, a
+ * Return, anything can be put on credit). Handled as a special case in
+ * GetExpenseReportService rather than becoming a stored category, so an
+ * expense's actual category is never overwritten just because it happens to
+ * be unpaid.
+ */
+export const EXPENSE_REPORT_TYPES = Object.freeze([...Object.values(EXPENSE_CATEGORY), 'CREDIT']);
 
 /**
  * Cash-drawer transaction kinds.

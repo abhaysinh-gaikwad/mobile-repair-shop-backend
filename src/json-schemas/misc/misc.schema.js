@@ -2,7 +2,7 @@ import { DATE_PRESETS } from '@src/libs/dayjs';
 import {
   ACTIVE_LEDGER_SOURCES,
   ALL_PAYMENT_METHODS,
-  EXPENSE_CATEGORY,
+  EXPENSE_REPORT_TYPES,
   LEDGER_ENTRY_TYPE,
   REPAIR_STATUS,
 } from '@src/utils/constants/public.constants';
@@ -230,14 +230,27 @@ export const collectionReportSchema = {
   },
 };
 
-/** Expense report: Date + Category (Material / Loss / Other Expense / All Expense). */
+/**
+ * Expense report: Date + Type (Material / Loss / Other Expense / Return /
+ * Credit / All Expense). "Credit" is a payment method, not a stored
+ * category — see EXPENSE_REPORT_TYPES and GetExpenseReportService.
+ */
 export const expenseReportSchema = {
   query: {
     type: 'object',
     properties: {
       ...datePresetProps,
-      category: { type: 'string', enum: Object.values(EXPENSE_CATEGORY) },
+      category: { type: 'string', enum: EXPENSE_REPORT_TYPES },
     },
+    additionalProperties: false,
+  },
+};
+
+/** Dashboard "Today at a Glance", now filterable by the same shared presets. */
+export const dashboardSummarySchema = {
+  query: {
+    type: 'object',
+    properties: { ...datePresetProps },
     additionalProperties: false,
   },
 };

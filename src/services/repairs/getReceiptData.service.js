@@ -80,6 +80,7 @@ export default class GetReceiptDataService extends BaseHandler {
         },
         receiptNumber: plain.receiptNumber,
         receivedAt: plain.receivedAt,
+        isRepeatCustomer: Boolean(plain.isRepeatCustomer),
         customer: {
           // The name snapshotted onto THIS job wins over the shared
           // customer record's — see repairJob.model.js. Older jobs created

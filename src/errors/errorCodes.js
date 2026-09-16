@@ -299,21 +299,6 @@ export const Errors = Object.freeze({
     code: 7004,
     httpStatusCode: StatusCodes.BAD_REQUEST,
   },
-  UNCONFIRMED_PAYMENT_NOT_FOUND: {
-    name: 'UnconfirmedPaymentNotFound',
-    message: 'Unconfirmed payment not found',
-    explanation: 'No pending payment entry exists with the supplied id.',
-    code: 7005,
-    httpStatusCode: StatusCodes.NOT_FOUND,
-  },
-  UNCONFIRMED_PAYMENT_ALREADY_RESOLVED: {
-    name: 'UnconfirmedPaymentAlreadyResolved',
-    message: 'This payment has already been confirmed or rejected',
-    explanation: 'It can only be resolved once — check the Cash Memo for the entry it produced.',
-    code: 7006,
-    httpStatusCode: StatusCodes.CONFLICT,
-  },
-
   // ---- WhatsApp (76xx) ----
   WHATSAPP_NOT_CONFIGURED: {
     name: 'WhatsAppNotConfigured',
@@ -384,6 +369,13 @@ export const Errors = Object.freeze({
     explanation: 'No supplier exists with the supplied id.',
     code: 7503,
     httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  RETURN_NEEDS_RECEIPT_OR_CUSTOMER: {
+    name: 'ReturnNeedsReceiptOrCustomer',
+    message: 'A Return needs either a receipt number or a customer name',
+    explanation: 'The shop needs to know who the money went back to — enter one of the two.',
+    code: 7504,
+    httpStatusCode: StatusCodes.BAD_REQUEST,
   },
   ESTIMATE_NOT_FOUND: {
     name: 'EstimateNotFound',

@@ -52,6 +52,7 @@ export default class CreateRepairService extends BaseHandler {
       deviceUnlockType,
       deviceUnlockCredential,
       previousRepairJobId,
+      isRepeatCustomer,
       adminId,
     } = this.args;
 
@@ -165,6 +166,7 @@ export default class CreateRepairService extends BaseHandler {
 
         previousRepairJobId: previousRepair?.id ?? null,
         repeatOfReceipt: previousRepair?.receiptNumber ?? null,
+        isRepeatCustomer: Boolean(isRepeatCustomer),
 
         status,
         estimatedCost: estimatedCost ?? null,
