@@ -90,12 +90,8 @@ export class GetRepairSummaryReportService extends BaseHandler {
         totalRepairs,
         delivered: countFor(REPAIR_STATUS.DELIVERED),
         jobDone: countFor(REPAIR_STATUS.JOB_DONE),
-        inRepair:
-          countFor(REPAIR_STATUS.QUOTATION_GIVEN) +
-          countFor(REPAIR_STATUS.CUSTOMER_APPROVAL) +
-          countFor(REPAIR_STATUS.OUTDOOR_OUT) +
-          countFor(REPAIR_STATUS.OUTDOOR_IN) +
-          countFor(REPAIR_STATUS.IN_REPAIR),
+        // Exactly the IN_REPAIR status — matches Dashboard's inRepairCount.
+        inRepair: countFor(REPAIR_STATUS.IN_REPAIR),
         pending: countFor(REPAIR_STATUS.PENDING),
         totalValue,
         totalCollected,
@@ -195,13 +191,8 @@ export class GetEngineerReportService extends BaseHandler {
         totalRepairs: mine.length,
         delivered: countOf(REPAIR_STATUS.DELIVERED),
         jobDone: countOf(REPAIR_STATUS.JOB_DONE),
-        inRepair: countOf(
-          REPAIR_STATUS.QUOTATION_GIVEN,
-          REPAIR_STATUS.CUSTOMER_APPROVAL,
-          REPAIR_STATUS.OUTDOOR_OUT,
-          REPAIR_STATUS.OUTDOOR_IN,
-          REPAIR_STATUS.IN_REPAIR,
-        ),
+        // Exactly the IN_REPAIR status — matches Dashboard/repair summary.
+        inRepair: countOf(REPAIR_STATUS.IN_REPAIR),
         pending: countOf(REPAIR_STATUS.PENDING),
         totalValue: round2(mine.reduce((sum, job) => sum + round2(job.totalAmount), 0)),
         totalCollected: round2(mine.reduce((sum, job) => sum + (paid.get(job.id) ?? 0), 0)),

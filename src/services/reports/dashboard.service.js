@@ -131,13 +131,9 @@ export default class GetDashboardSummaryService extends BaseHandler {
       estimatesByJob.set(row.repairJobId, list);
     }
 
-    // "Still on the pipeline" — everything between intake and job-done.
-    const inRepairCount =
-      countFor(REPAIR_STATUS.QUOTATION_GIVEN) +
-      countFor(REPAIR_STATUS.CUSTOMER_APPROVAL) +
-      countFor(REPAIR_STATUS.OUTDOOR_OUT) +
-      countFor(REPAIR_STATUS.OUTDOOR_IN) +
-      countFor(REPAIR_STATUS.IN_REPAIR);
+    // Exactly the IN_REPAIR status — no other statuses folded in — so the
+    // card's number always matches what clicking through to Repairs shows.
+    const inRepairCount = countFor(REPAIR_STATUS.IN_REPAIR);
 
     return {
       ...getSuccessResponse('Dashboard summary fetched successfully.'),

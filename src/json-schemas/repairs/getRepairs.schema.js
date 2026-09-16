@@ -6,13 +6,10 @@ const getRepairsSchema = {
     properties: {
       page: { type: 'integer', minimum: 1, default: 1 },
       limit: { type: 'integer', minimum: 1, maximum: 100, default: 20 },
-      // A single status ("PENDING") or several joined by commas
-      // ("QUOTATION_GIVEN,CUSTOMER_APPROVAL,OUTDOOR_OUT,OUTDOOR_IN,IN_REPAIR")
-      // — the latter is how the Dashboard's "In Repair" card (a combined
-      // pipeline bucket, not one single status) links here with the exact
-      // same set of statuses it counted, instead of a mismatched subset.
-      // Validated against REPAIR_STATUS at the service level rather than an
-      // AJV enum, which can't express "one of these OR a comma list of them".
+      // A single status ("PENDING"), or several joined by commas for a
+      // multi-status filter. Validated against REPAIR_STATUS at the service
+      // level rather than an AJV enum, which can't express "one of these OR
+      // a comma list of them".
       status: { type: 'string', maxLength: 200 },
       engineerId: { type: 'integer', minimum: 1 },
       leadSource: { type: 'string', maxLength: 60 },
@@ -27,6 +24,9 @@ const getRepairsSchema = {
       dateTo: { type: 'string' },
       paymentStatus: { type: 'string', enum: ['pending', 'paid'] },
       active: { type: 'boolean' },
+      // "pending" = no quotation recorded yet — matches the Dashboard's
+      // Pending Quotation card exactly (see GetRepairsService).
+      quotationStatus: { type: 'string', enum: ['pending'] },
     },
     additionalProperties: false,
   },

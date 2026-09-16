@@ -30,6 +30,7 @@ export default class GetRepairsService extends BaseHandler {
       dateTo,
       paymentStatus,
       active,
+      quotationStatus,
     } = this.args;
 
     const where = {};
@@ -64,6 +65,15 @@ export default class GetRepairsService extends BaseHandler {
     // midnight.
     const { start, end } = resolveDateRange({ preset, dateFrom, dateTo });
     applyDateRangeFilter(where, 'receivedAt', start, end);
+
+    // "No quotation given yet" — a real DB filter, not a post-fetch guess,
+    // so the count matches the Dashboard's Pending Quotation card exactly.
+    // A job counts as quoted the moment it has ANY repair_estimates row,
+    // numeric or text-only — same rule as everywhere else quotations are
+    // read (see dashboard.service.js's pendingQuotation).
+    if (quotationStatus === 'pending') {
+      where.id = { [Op.notIn]: db.sequelize.literal('(SELECT DISTINCT repair_job_id FROM repair_estimates)') };
+    }
 
     if (search) {
       const term = `%${String(search).trim()}%`;
