@@ -2,6 +2,7 @@ import { Op } from 'sequelize';
 
 import db from '@src/db/models';
 import { getPaginationResponse, getSuccessResponse } from '@src/helpers/response.helpers';
+import { resolveDateRange } from '@src/libs/dayjs';
 import { BaseHandler } from '@src/libs/logicBase';
 import { CLOSED_REPAIR_STATUSES } from '@src/utils/constants/public.constants';
 import { round2, subtractAmounts } from '@src/utils/money.utils';
@@ -24,6 +25,7 @@ export default class GetRepairsService extends BaseHandler {
       leadHandlerId,
       customerId,
       search,
+      preset,
       dateFrom,
       dateTo,
       paymentStatus,
@@ -43,7 +45,13 @@ export default class GetRepairsService extends BaseHandler {
       where.status = { [Op.notIn]: CLOSED_REPAIR_STATUSES };
     }
 
-    applyDateRangeFilter(where, 'receivedAt', dateFrom, dateTo);
+    // No preset and no explicit dates: unfiltered, same as the page's
+    // existing "All Repairs" default. Otherwise resolved server-side in the
+    // shop's timezone — same shared logic as Dashboard/Reports — so a
+    // custom range's end date is inclusive of the whole day, not just
+    // midnight.
+    const { start, end } = resolveDateRange({ preset, dateFrom, dateTo });
+    applyDateRangeFilter(where, 'receivedAt', start, end);
 
     if (search) {
       const term = `%${String(search).trim()}%`;

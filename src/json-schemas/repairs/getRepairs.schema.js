@@ -1,3 +1,4 @@
+import { DATE_PRESETS } from '@src/libs/dayjs';
 import { REPAIR_STATUS } from '@src/utils/constants/public.constants';
 
 const getRepairsSchema = {
@@ -12,6 +13,10 @@ const getRepairsSchema = {
       leadHandlerId: { type: 'integer', minimum: 1 },
       customerId: { type: 'integer', minimum: 1 },
       search: { type: 'string', maxLength: 120 },
+      // Same shared date-range shape as Dashboard/Reports — a named preset
+      // (resolved server-side in the shop's timezone, inclusive of the
+      // whole end day) or an explicit CUSTOM dateFrom/dateTo pair.
+      preset: { type: 'string', enum: Object.values(DATE_PRESETS) },
       dateFrom: { type: 'string' },
       dateTo: { type: 'string' },
       paymentStatus: { type: 'string', enum: ['pending', 'paid'] },
