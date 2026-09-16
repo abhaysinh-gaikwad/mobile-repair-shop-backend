@@ -218,6 +218,21 @@ export const SETTING_KEYS = Object.freeze({
 export const SEQUENCES = Object.freeze({
   RECEIPT_NUMBER: 'repair_receipt_number_seq',
   LEDGER_ENTRY_NUMBER: 'repair_ledger_entry_no_seq',
+  NEW_CRM_LEAD_SERIAL: 'new_crm_lead_serial_seq',
+});
+
+/**
+ * Starter statuses for a New CRM lead. Stored as a plain STRING column (not
+ * a Postgres ENUM or a frozen validation list), so the shop can introduce a
+ * new one later without a migration — this list is only what the frontend
+ * offers by default.
+ */
+export const NEW_CRM_LEAD_STATUS = Object.freeze({
+  NEW: 'NEW',
+  INTERESTED: 'INTERESTED',
+  NOT_INTERESTED: 'NOT_INTERESTED',
+  CALL_NOT_CONNECTED: 'CALL_NOT_CONNECTED',
+  PHONE_SWITCHED_OFF: 'PHONE_SWITCHED_OFF',
 });
 
 export const TOKEN_TYPE = Object.freeze({
@@ -288,6 +303,10 @@ export const PERMISSION_MODULE = Object.freeze({
   DASHBOARD: 'DASHBOARD',
   REPAIRS: 'REPAIRS',
   CRM: 'CRM',
+  // A separate, parallel lead-tracking module for telecallers — deliberately
+  // its own permission, not folded into CRM, so it can be granted/revoked
+  // independently of the existing Lead board.
+  NEW_CRM: 'NEW_CRM',
   RATE_CARD: 'RATE_CARD',
   CUSTOMERS: 'CUSTOMERS',
   BILLING: 'BILLING',
@@ -308,6 +327,7 @@ export const PERMISSION_MODULE_LABELS = Object.freeze({
   [PERMISSION_MODULE.DASHBOARD]: 'Dashboard',
   [PERMISSION_MODULE.REPAIRS]: 'Repairs',
   [PERMISSION_MODULE.CRM]: 'CRM / Leads',
+  [PERMISSION_MODULE.NEW_CRM]: 'New CRM',
   [PERMISSION_MODULE.RATE_CARD]: 'Rate Card',
   [PERMISSION_MODULE.CUSTOMERS]: 'Customers',
   [PERMISSION_MODULE.BILLING]: 'Billing / Cash Memo',
@@ -354,6 +374,9 @@ export const ROLE_PERMISSIONS = Object.freeze({
     permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.VIEW),
     permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.CREATE),
     permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.EDIT),
+    permission(PERMISSION_MODULE.NEW_CRM, PERMISSION_ACTION.VIEW),
+    permission(PERMISSION_MODULE.NEW_CRM, PERMISSION_ACTION.CREATE),
+    permission(PERMISSION_MODULE.NEW_CRM, PERMISSION_ACTION.EDIT),
     ...viewOnly(
       PERMISSION_MODULE.DASHBOARD,
       PERMISSION_MODULE.RATE_CARD,
@@ -369,6 +392,8 @@ export const ROLE_PERMISSIONS = Object.freeze({
   [ADMIN_ROLE.MARKETING]: Object.freeze([
     permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.VIEW),
     permission(PERMISSION_MODULE.CRM, PERMISSION_ACTION.CREATE),
+    permission(PERMISSION_MODULE.NEW_CRM, PERMISSION_ACTION.VIEW),
+    permission(PERMISSION_MODULE.NEW_CRM, PERMISSION_ACTION.CREATE),
     ...viewOnly(PERMISSION_MODULE.DASHBOARD, PERMISSION_MODULE.REPORTS, PERMISSION_MODULE.RATE_CARD),
   ]),
 

@@ -401,6 +401,22 @@ export const Errors = Object.freeze({
     httpStatusCode: StatusCodes.METHOD_NOT_ALLOWED,
   },
 
+  // ---- New CRM (81xx) ----
+  NEW_CRM_LEAD_NOT_FOUND: {
+    name: 'NewCrmLeadNotFound',
+    message: 'Lead not found',
+    explanation: 'No New CRM lead exists with the supplied id.',
+    code: 8100,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+  TELECALLER_NOT_FOUND: {
+    name: 'TelecallerNotFound',
+    message: 'Telecaller not found',
+    explanation: 'No active telecaller user exists with the supplied id.',
+    code: 8101,
+    httpStatusCode: StatusCodes.NOT_FOUND,
+  },
+
   // ---- Settings (9xxx) ----
   SETTING_NOT_FOUND: (key) => ({
     name: 'SettingNotFound',

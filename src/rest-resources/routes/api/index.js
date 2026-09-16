@@ -3,6 +3,7 @@ import express from 'express';
 import authRouter from './auth.router';
 import crmRouter from './crm.router';
 import engineerRouter from './engineer.router';
+import newCrmRouter from './newCrm.router';
 import {
   billingRouter,
   customerRouter,
@@ -35,6 +36,7 @@ apiRouter.use('/settings', settingRouter);
 apiRouter.use('/whatsapp/web', whatsappWebRouter);
 apiRouter.use('/rate-card', rateCardRouter);
 apiRouter.use('/crm', crmRouter);
+apiRouter.use('/new-crm', newCrmRouter);
 apiRouter.use('/users', userRouter);
 
 // Meta's callback. Unauthenticated by necessity (Meta has no login) —
